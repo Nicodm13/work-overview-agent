@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: work-overview-agent
+  ai:
+    mcp:
+      server:
+        name: work-overview-agent
+        version: 0.1.0
+        type: SYNC
+        protocol: STREAMABLE
+        annotation-scanner:
+          enabled: true
+
+server:
+  port: 8080
