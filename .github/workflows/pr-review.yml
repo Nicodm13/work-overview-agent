@@ -65,6 +65,15 @@ jobs:
         run: |
           git fetch --no-tags origin "$PR_BASE_REF" "+refs/pull/$PR_NUMBER/head"
 
+      - name: Check OpenAI API key
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::Missing OPENAI_API_KEY repository secret. Add it in GitHub under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
       - name: Run Codex review
         id: run_codex
         uses: openai/codex-action@v1
