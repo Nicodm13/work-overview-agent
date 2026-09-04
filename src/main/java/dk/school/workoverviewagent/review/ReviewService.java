@@ -1,10 +1,10 @@
 package dk.school.workoverviewagent.review;
 
 import dk.school.workoverviewagent.action.api.IActionService;
-import dk.school.workoverviewagent.review.contract.ReviewRequest;
-import dk.school.workoverviewagent.review.contract.ReviewResponse;
 import dk.school.workoverviewagent.evidence.api.IEvidenceService;
 import dk.school.workoverviewagent.review.api.IReviewService;
+import dk.school.workoverviewagent.review.contract.ReviewRequest;
+import dk.school.workoverviewagent.review.contract.ReviewResponse;
 import dk.school.workoverviewagent.source.api.ISourceAdapterLayer;
 import dk.school.workoverviewagent.status.api.IStatusService;
 import java.time.Instant;
@@ -42,6 +42,11 @@ public class ReviewService implements IReviewService {
         var statusItems = statusService.applyCurrentStatus(request.userId(), evidenceItems);
         var overviewItems = actionService.addSuggestedActions(request.userId(), statusItems);
 
-        return null;
+        return new ReviewResponse(
+                UUID.randomUUID().toString(),
+                request.scope(),
+                Instant.now(),
+                overviewItems,
+                sourceData == null ? List.of() : sourceData.limitations());
     }
 }
