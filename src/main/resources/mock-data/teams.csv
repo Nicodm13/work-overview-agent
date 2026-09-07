@@ -1,0 +1,8 @@
+sep=,
+id,occurredAt,title,content,senderOrOrganizer,participants,team,channel,topicId
+teams-2026-08-20-001,2026-08-20T09:15:00Z,Test environment status,"Maja, do you have an update on whether the test environment is ready for use?",Jonas Holm,user-1|Maja Jensen|Jonas Holm,Delivery,Project Alpha,test-environment
+teams-2026-08-21-001,2026-08-21T15:40:00Z,Test environment investigation,"I am still checking the access configuration and will report back.",Maja Jensen,user-1|Maja Jensen|Jonas Holm,Delivery,Project Alpha,test-environment
+teams-2026-08-26-001,2026-08-26T10:05:00Z,Test environment ready,"The test environment is ready for use. The access issue has been resolved.",Maja Jensen,user-1|Maja Jensen|Jonas Holm,Delivery,Project Alpha,test-environment
+teams-2026-08-27-001,2026-08-27T11:20:00Z,API contract options,"I have compared both API ownership options. The team still needs to choose one.",Jonas Holm,user-1|Jonas Holm|Sara Lind,Delivery,Integrations,api-ownership
+teams-2026-09-04-001,2026-09-04T08:20:00Z,Test environment clarification,"Can you confirm whether the test environment is ready for use?",Maja Jensen,user-1|Maja Jensen,Delivery,Project Alpha,test-environment
+teams-2026-09-04-002,2026-09-04T13:45:00Z,API contract follow-up,"We still need your answer on the API contract before tomorrow's review.",Jonas Holm,user-1|Jonas Holm,Delivery,Integrations,api-ownership
