@@ -29,10 +29,10 @@ class EvidenceServiceTest {
                 List.of("Maja Jensen"),
                 Map.of("channel", "Project Alpha"));
 
-        var findings = evidenceService.captureEvidence(reviewRequest(), new SourceData(List.of(sourceItem), List.of()));
+        var evidenceItems = evidenceService.captureEvidence(reviewRequest(), new SourceData(List.of(sourceItem), List.of()));
 
-        assertThat(findings).hasSize(1);
-        var evidence = findings.getFirst();
+        assertThat(evidenceItems).hasSize(1);
+        var evidence = evidenceItems.getFirst();
         assertThat(evidence.id()).isEqualTo("evidence-teams-1");
         assertThat(evidence.title()).isEqualTo("Test environment clarification");
         assertThat(evidence.summary()).isEqualTo("Source evidence captured from TEAMS.");
@@ -60,10 +60,10 @@ class EvidenceServiceTest {
                 List.of("Sara Lind"),
                 Map.of("importance", "high"));
 
-        var findings = evidenceService.captureEvidence(reviewRequest(), new SourceData(List.of(sourceItem), List.of()));
+        var evidenceItems = evidenceService.captureEvidence(reviewRequest(), new SourceData(List.of(sourceItem), List.of()));
 
-        assertThat(findings).hasSize(1);
-        var evidence = findings.getFirst();
+        assertThat(evidenceItems).hasSize(1);
+        var evidence = evidenceItems.getFirst();
         assertThat(evidence.evidenceStatus()).isEqualTo(EvidenceStatus.SOURCE_EVIDENCE_CAPTURED);
         assertThat(evidence.summary()).isEqualTo("Source evidence captured from OUTLOOK.");
     }

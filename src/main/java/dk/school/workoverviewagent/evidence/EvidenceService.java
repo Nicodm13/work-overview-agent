@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 @Component
 class EvidenceService implements IEvidenceService {
 
-    private final Map<String, EvidenceItem> latestFindingsById = new LinkedHashMap<>();
+    private final Map<String, EvidenceItem> latestEvidenceById = new LinkedHashMap<>();
 
     @Override
     public synchronized List<EvidenceItem> captureEvidence(ReviewRequest request, SourceData sourceData) {
@@ -24,20 +24,20 @@ class EvidenceService implements IEvidenceService {
             return List.of();
         }
 
-        var findings = sourceData.items().stream()
+        var evidenceItems = sourceData.items().stream()
                 .map(this::toEvidenceItem)
                 .toList();
-        latestFindingsById.clear();
-        findings.forEach(finding -> latestFindingsById.put(finding.id(), finding));
-        return findings;
+        latestEvidenceById.clear();
+        evidenceItems.forEach(evidence -> latestEvidenceById.put(evidence.id(), evidence));
+        return evidenceItems;
     }
 
     @Override
     public synchronized EvidenceResponse getEvidence(String evidenceId) {
-        var finding = latestFindingsById.get(evidenceId);
+        var evidence = latestEvidenceById.get(evidenceId);
         return new EvidenceResponse(
                 evidenceId,
-                finding == null ? List.of() : finding.references());
+                evidence == null ? List.of() : evidence.references());
     }
 
     private EvidenceItem toEvidenceItem(SourceItem sourceItem) {

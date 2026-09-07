@@ -4,10 +4,9 @@ import java.time.Instant;
 
 public record WorkStatusRecord(
         String id,
-        String followUpItemId,
+        String evidenceId,
         WorkStatus status,
         String reason,
-        Instant updatedAt,
         StatusSource statusSource,
-        String relatedSourceReferenceId) {
+        Instant updatedAt) {
 }

@@ -4,7 +4,7 @@ import java.time.Instant;
 
 public record SourceReference(
         String id,
-        String followUpItemId,
+        String evidenceId,
         String sourceId,
         SourceType sourceType,
         Instant timestamp,
