@@ -1,0 +1,7 @@
+sep=,
+id,occurredAt,title,content,senderOrOrganizer,participants,startsAt,endsAt,topicId
+calendar-2026-08-19-001,2026-08-19T14:00:00Z,Project Alpha planning,"Agree responsibilities for the test environment and API ownership.",Sara Lind,user-1|Maja Jensen|Jonas Holm|Sara Lind,2026-08-19T14:00:00Z,2026-08-19T15:00:00Z,project-alpha-planning
+calendar-2026-08-25-001,2026-08-25T10:00:00Z,API ownership review,"Review the unresolved API ownership decision.",Sara Lind,user-1|Jonas Holm|Sara Lind,2026-08-25T10:00:00Z,2026-08-25T10:30:00Z,api-ownership
+calendar-2026-09-03-001,2026-09-03T09:00:00Z,Demo preparation check,"Review the evidence examples and remaining preparation work.",user-1,user-1|Supervisor,2026-09-03T09:00:00Z,2026-09-03T09:30:00Z,demo-preparation
+calendar-2026-09-04-001,2026-09-04T12:00:00Z,Project Alpha status review,"Review open decisions, integration risks, and test environment readiness.",Maja Jensen,user-1|Maja Jensen|Jonas Holm|Sara Lind,2026-09-04T12:00:00Z,2026-09-04T12:30:00Z,project-alpha-status
+calendar-2026-09-07-001,2026-09-07T08:30:00Z,Prototype demo preparation,"Prepare the work overview demo flow and evidence examples.",user-1,user-1|Supervisor,2026-09-07T08:30:00Z,2026-09-07T09:00:00Z,demo-preparation

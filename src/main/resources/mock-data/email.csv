@@ -1,0 +1,8 @@
+sep=,
+id,occurredAt,title,content,senderOrOrganizer,participants,folder,importance,topicId
+email-2026-08-20-001,2026-08-20T13:00:00Z,Test environment feedback requested,"Maja, please send feedback on the test environment before Friday's delivery check.",Sara Lind,user-1|Maja Jensen|Sara Lind,Inbox,high,test-environment
+email-2026-08-24-001,2026-08-24T09:30:00Z,Test environment access details,"The remaining access details are attached. Let us know if the environment is still unavailable.",Sara Lind,user-1|Maja Jensen|Sara Lind,Inbox,normal,test-environment
+email-2026-08-28-001,2026-08-28T14:10:00Z,API ownership decision,"Jonas confirmed that the integration team will own the API contract going forward.",Sara Lind,user-1|Jonas Holm|Sara Lind,Inbox,high,api-ownership
+email-2026-09-04-001,2026-09-04T09:05:00Z,Decision needed: integration approach,"Please send your recommendation for the integration approach before Friday noon.",Sara Lind,user-1|Sara Lind,Inbox,high,api-ownership
+email-2026-09-05-001,2026-09-05T10:10:00Z,Updated onboarding notes,"The onboarding notes have been updated for next week's walkthrough.",Emil Bro,user-1|Emil Bro,Inbox,normal,onboarding
+email-2026-09-06-001,2026-09-06T16:00:00Z,Demo evidence examples,"The demo should include examples of source evidence and user-confirmed status.",Supervisor,user-1|Supervisor,Inbox,normal,demo-preparation

@@ -1,11 +1,14 @@
 package dk.school.workoverviewagent.evidence.api;
 
-import dk.school.workoverviewagent.evidence.EvidenceItem;
+import dk.school.workoverviewagent.evidence.contract.EvidenceResponse;
+import dk.school.workoverviewagent.model.EvidenceItem;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.contract.SourceData;
 import java.util.List;
 
 public interface IEvidenceService {
 
-    List<EvidenceItem> identifyFollowUps(ReviewRequest request, SourceData sourceData);
+    List<EvidenceItem> captureEvidence(ReviewRequest request, SourceData sourceData);
+
+    EvidenceResponse getEvidence(String evidenceId);
 }

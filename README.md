@@ -54,3 +54,4 @@ Open the inspector in your browser and confirm that the server responds and expo
 
 - This server currently uses the Spring AI MCP WebMVC starter with Streamable HTTP.
 - The MCP endpoint is intended for local development unless additional security is added.
+- Application services are deterministic boundaries. Source adapters fetch and normalize data, Evidence records source references and excerpts, Status stores user-confirmed state, and Action builds explicit drafts. AI reasoning, prioritization, and semantic interpretation should not be implemented inside these services.

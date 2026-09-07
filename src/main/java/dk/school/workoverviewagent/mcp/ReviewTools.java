@@ -11,11 +11,11 @@ import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
 @Component
-class ReviewTools {
+public class ReviewTools {
 
     private final IReviewService reviewService;
 
-    ReviewTools(IReviewService reviewService) {
+    public ReviewTools(IReviewService reviewService) {
         this.reviewService = reviewService;
     }
 

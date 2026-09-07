@@ -1,8 +1,9 @@
 package dk.school.workoverviewagent.review;
 
-import dk.school.workoverviewagent.action.api.IActionService;
 import dk.school.workoverviewagent.evidence.api.IEvidenceService;
+import dk.school.workoverviewagent.model.StatusItem;
 import dk.school.workoverviewagent.review.api.IReviewService;
+import dk.school.workoverviewagent.review.contract.OverviewItem;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.review.contract.ReviewResponse;
 import dk.school.workoverviewagent.source.api.ISourceAdapterLayer;
@@ -20,17 +21,14 @@ public class ReviewService implements IReviewService {
     private final ISourceAdapterLayer sourceAdapterLayer;
     private final IEvidenceService evidenceService;
     private final IStatusService statusService;
-    private final IActionService actionService;
 
     public ReviewService(
             ISourceAdapterLayer sourceAdapterLayer,
             IEvidenceService evidenceService,
-            IStatusService statusService,
-            IActionService actionService) {
+            IStatusService statusService) {
         this.sourceAdapterLayer = sourceAdapterLayer;
         this.evidenceService = evidenceService;
         this.statusService = statusService;
-        this.actionService = actionService;
     }
 
     @Override
@@ -42,9 +40,11 @@ public class ReviewService implements IReviewService {
                 request.endsAt(),
                 request.sources(),
                 null));
-        var evidenceItems = evidenceService.identifyFollowUps(request, sourceData);
+        var evidenceItems = evidenceService.captureEvidence(request, sourceData);
         var statusItems = statusService.applyCurrentStatus(evidenceItems);
-        var overviewItems = actionService.addSuggestedActions(statusItems);
+        var overviewItems = statusItems.stream()
+                .map(this::toOverviewItem)
+                .toList();
 
         return new ReviewResponse(
                 UUID.randomUUID().toString(),
@@ -52,5 +52,18 @@ public class ReviewService implements IReviewService {
                 Instant.now(),
                 overviewItems,
                 sourceData == null ? List.of() : sourceData.limitations());
+    }
+
+    private OverviewItem toOverviewItem(StatusItem statusItem) {
+        var evidenceItem = statusItem.evidenceItem();
+        return new OverviewItem(
+                evidenceItem.id(),
+                evidenceItem.title(),
+                evidenceItem.summary(),
+                "UNRANKED",
+                evidenceItem.evidenceStatus(),
+                evidenceItem.references(),
+                statusItem.workStatus(),
+                statusItem.statusSource());
     }
 }
