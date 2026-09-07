@@ -1,6 +1,6 @@
 package dk.school.workoverviewagent.status;
 
-import dk.school.workoverviewagent.evidence.EvidenceItem;
+import dk.school.workoverviewagent.model.EvidenceItem;
 import dk.school.workoverviewagent.model.StatusSource;
 import dk.school.workoverviewagent.model.WorkStatus;
 import dk.school.workoverviewagent.status.api.IStatusService;

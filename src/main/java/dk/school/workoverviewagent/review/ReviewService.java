@@ -42,7 +42,7 @@ public class ReviewService implements IReviewService {
                 request.endsAt(),
                 request.sources(),
                 null));
-        var evidenceItems = evidenceService.identifyFollowUps(request, sourceData);
+        var evidenceItems = evidenceService.captureEvidence(request, sourceData);
         var statusItems = statusService.applyCurrentStatus(evidenceItems);
         var overviewItems = actionService.addSuggestedActions(statusItems);
 

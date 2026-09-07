@@ -25,8 +25,9 @@ class ActionService implements IActionService {
                 evidenceItem.id(),
                 evidenceItem.title(),
                 evidenceItem.summary(),
-                evidenceItem.priority(),
+                "UNRANKED",
                 evidenceItem.evidenceStatus(),
+                evidenceItem.references(),
                 statusItem.workStatus(),
                 statusItem.statusSource(),
                 "Review the source evidence and decide whether follow-up is needed.");

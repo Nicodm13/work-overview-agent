@@ -42,10 +42,14 @@ class ReviewServiceTest {
                         "API contract follow-up");
         assertThat(response.items())
                 .allSatisfy(item -> {
+                    assertThat(item.priority()).isEqualTo("UNRANKED");
+                    assertThat(item.evidenceReferences()).isNotEmpty();
                     assertThat(item.workStatus()).isEqualTo(WorkStatus.UNVERIFIED);
                     assertThat(item.statusSource()).isEqualTo(StatusSource.DIGITAL_EVIDENCE);
                     assertThat(item.suggestedNextAction()).isNotBlank();
                 });
+        assertThat(response.items().getFirst().evidenceReferences().getFirst().sourceId())
+                .isEqualTo("teams-2026-09-04-001");
         assertThat(response.limitations()).isEmpty();
     }
 }
