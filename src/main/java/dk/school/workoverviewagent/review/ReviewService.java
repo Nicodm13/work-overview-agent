@@ -5,6 +5,7 @@ import dk.school.workoverviewagent.evidence.api.IEvidenceService;
 import dk.school.workoverviewagent.review.api.IReviewService;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.review.contract.ReviewResponse;
+import dk.school.workoverviewagent.source.contract.SourceRequest;
 import dk.school.workoverviewagent.source.api.ISourceAdapterLayer;
 import dk.school.workoverviewagent.status.api.IStatusService;
 import java.time.Instant;
@@ -37,7 +38,12 @@ public class ReviewService implements IReviewService {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(request.scope(), "review scope must not be null");
 
-        var sourceData = sourceAdapterLayer.loadSources(request.userId(), request.scope());
+        var sourceData = sourceAdapterLayer.loadSources(new SourceRequest(
+                request.userId(),
+                request.scope().startsAt(),
+                request.scope().endsAt(),
+                request.scope().sources(),
+                request.scope().filterText()));
         var evidenceItems = evidenceService.identifyFollowUps(request.userId(), request.scope(), sourceData);
         var statusItems = statusService.applyCurrentStatus(request.userId(), evidenceItems);
         var overviewItems = actionService.addSuggestedActions(request.userId(), statusItems);

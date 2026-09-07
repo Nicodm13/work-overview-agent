@@ -12,6 +12,6 @@ class ActionService implements IActionService {
     @Override
     public List<OverviewItem> addSuggestedActions(String userId, List<StatusItem> statusItems) {
         // TODO #11: Suggest next actions and prepare editable drafts without executing them.
-        return null;
+        return List.of();
     }
 }

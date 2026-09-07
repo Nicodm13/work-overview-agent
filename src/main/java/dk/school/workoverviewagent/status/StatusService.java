@@ -11,6 +11,6 @@ class StatusService implements IStatusService {
     @Override
     public List<StatusItem> applyCurrentStatus(String userId, List<EvidenceItem> evidenceItems) {
         // TODO #12: Apply user-confirmed work status and preserve evidence/work status distinction.
-        return null;
+        return List.of();
     }
 }

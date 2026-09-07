@@ -2,7 +2,7 @@ package dk.school.workoverviewagent.evidence.api;
 
 import dk.school.workoverviewagent.evidence.EvidenceItem;
 import dk.school.workoverviewagent.review.contract.ReviewScope;
-import dk.school.workoverviewagent.source.SourceData;
+import dk.school.workoverviewagent.source.contract.SourceData;
 import java.util.List;
 
 public interface IEvidenceService {
