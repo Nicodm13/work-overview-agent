@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface IActionService {
 
-    List<OverviewItem> addSuggestedActions(String userId, List<StatusItem> statusItems);
+    List<OverviewItem> addSuggestedActions(List<StatusItem> statusItems);
 }

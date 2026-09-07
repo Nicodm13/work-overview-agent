@@ -21,7 +21,6 @@ class SourceAdapterLayerTest {
     @Test
     void shouldLoadDeterministicMockDataForAllPrototypeSources() {
         var result = sourceAdapterLayer.loadSources(new SourceRequest(
-                "user-1",
                 Instant.parse("2026-09-04T00:00:00Z"),
                 Instant.parse("2026-09-04T23:59:59Z"),
                 List.of(),
@@ -44,7 +43,6 @@ class SourceAdapterLayerTest {
     @Test
     void shouldRespectSelectedSourceFilters() {
         var result = sourceAdapterLayer.loadSources(new SourceRequest(
-                "user-1",
                 Instant.parse("2026-09-04T00:00:00Z"),
                 Instant.parse("2026-09-04T23:59:59Z"),
                 List.of(SourceType.TEAMS, SourceType.CALENDAR),
@@ -59,7 +57,6 @@ class SourceAdapterLayerTest {
     @Test
     void shouldRespectIntervalAndTextFilters() {
         var result = sourceAdapterLayer.loadSources(new SourceRequest(
-                "user-1",
                 Instant.parse("2026-09-03T00:00:00Z"),
                 Instant.parse("2026-09-04T23:59:59Z"),
                 List.of(),

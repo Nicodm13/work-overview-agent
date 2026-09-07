@@ -5,7 +5,7 @@ import java.util.List;
 
 public record ReviewResponse(
         String reviewId,
-        ReviewScope scope,
+        ReviewRequest request,
         Instant reviewedAt,
         List<OverviewItem> items,
         List<String> limitations) {

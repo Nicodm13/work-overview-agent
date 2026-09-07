@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.util.List;
 
 public record SourceRequest(
-        String userId,
         Instant startsAt,
         Instant endsAt,
         List<SourceType> sourceTypes,

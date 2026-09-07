@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface IStatusService {
 
-    List<StatusItem> applyCurrentStatus(String userId, List<EvidenceItem> evidenceItems);
+    List<StatusItem> applyCurrentStatus(List<EvidenceItem> evidenceItems);
 }

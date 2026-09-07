@@ -10,8 +10,25 @@ import org.springframework.stereotype.Component;
 class ActionService implements IActionService {
 
     @Override
-    public List<OverviewItem> addSuggestedActions(String userId, List<StatusItem> statusItems) {
-        // TODO #11: Suggest next actions and prepare editable drafts without executing them.
-        return List.of();
+    public List<OverviewItem> addSuggestedActions(List<StatusItem> statusItems) {
+        if (statusItems == null) {
+            return List.of();
+        }
+        return statusItems.stream()
+                .map(this::toOverviewItem)
+                .toList();
+    }
+
+    private OverviewItem toOverviewItem(StatusItem statusItem) {
+        var evidenceItem = statusItem.evidenceItem();
+        return new OverviewItem(
+                evidenceItem.id(),
+                evidenceItem.title(),
+                evidenceItem.summary(),
+                evidenceItem.priority(),
+                evidenceItem.evidenceStatus(),
+                statusItem.workStatus(),
+                statusItem.statusSource(),
+                "Review the source evidence and decide whether follow-up is needed.");
     }
 }

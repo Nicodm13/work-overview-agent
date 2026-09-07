@@ -46,7 +46,6 @@ class SourceItemFilterTest {
 
         var result = sourceItemFilter.matching(
                 new SourceRequest(
-                        "user-1",
                         Instant.parse("2026-09-04T00:00:00Z"),
                         Instant.parse("2026-09-04T23:59:59Z"),
                         List.of(SourceType.TEAMS),
