@@ -14,8 +14,7 @@ public record OverviewItem(
         EvidenceStatus evidenceStatus,
         List<EvidenceReference> evidenceReferences,
         WorkStatus workStatus,
-        StatusSource statusSource,
-        String suggestedNextAction) {
+        StatusSource statusSource) {
 
     public OverviewItem {
         evidenceReferences = evidenceReferences == null ? List.of() : List.copyOf(evidenceReferences);

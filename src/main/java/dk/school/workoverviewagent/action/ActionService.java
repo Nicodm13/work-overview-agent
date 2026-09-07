@@ -10,8 +10,6 @@ import dk.school.workoverviewagent.action.api.IActionService;
 import dk.school.workoverviewagent.model.ActionDraft;
 import dk.school.workoverviewagent.model.ActionType;
 import dk.school.workoverviewagent.model.AuditLogEntry;
-import dk.school.workoverviewagent.model.StatusItem;
-import dk.school.workoverviewagent.review.contract.OverviewItem;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -28,16 +26,6 @@ class ActionService implements IActionService {
     private final Map<String, Instant> approvalsByDraftId = new LinkedHashMap<>();
     private final Map<String, String> approvedContentByDraftId = new LinkedHashMap<>();
     private final List<AuditLogEntry> auditEntries = new ArrayList<>();
-
-    @Override
-    public List<OverviewItem> addSuggestedActions(List<StatusItem> statusItems) {
-        if (statusItems == null) {
-            return List.of();
-        }
-        return statusItems.stream()
-                .map(this::toOverviewItem)
-                .toList();
-    }
 
     @Override
     public synchronized CreateActionDraftResponse createDraft(CreateActionDraftRequest request) {
@@ -98,20 +86,6 @@ class ActionService implements IActionService {
     @Override
     public synchronized List<AuditLogEntry> auditLog() {
         return List.copyOf(auditEntries);
-    }
-
-    private OverviewItem toOverviewItem(StatusItem statusItem) {
-        var evidenceItem = statusItem.evidenceItem();
-        return new OverviewItem(
-                evidenceItem.id(),
-                evidenceItem.title(),
-                evidenceItem.summary(),
-                "UNRANKED",
-                evidenceItem.evidenceStatus(),
-                evidenceItem.references(),
-                statusItem.workStatus(),
-                statusItem.statusSource(),
-                "Review the source evidence and decide whether follow-up is needed.");
     }
 
     private ActionDraft draftFor(String draftId) {
