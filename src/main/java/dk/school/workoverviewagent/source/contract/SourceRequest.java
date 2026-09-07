@@ -1,18 +1,17 @@
-package dk.school.workoverviewagent.review.contract;
+package dk.school.workoverviewagent.source.contract;
 
 import dk.school.workoverviewagent.model.SourceType;
 import java.time.Instant;
 import java.util.List;
 
-public record ReviewScope(
+public record SourceRequest(
         Instant startsAt,
         Instant endsAt,
-        List<SourceType> sources,
-        ReviewPurpose purpose,
+        List<SourceType> sourceTypes,
         String filterText) {
 
-    public ReviewScope {
-        sources = sources == null ? List.of() : List.copyOf(sources);
+    public SourceRequest {
+        sourceTypes = sourceTypes == null ? List.of() : List.copyOf(sourceTypes);
         if (startsAt != null && endsAt != null && endsAt.isBefore(startsAt)) {
             throw new IllegalArgumentException("endsAt must not be before startsAt");
         }

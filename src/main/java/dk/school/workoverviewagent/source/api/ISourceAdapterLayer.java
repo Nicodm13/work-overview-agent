@@ -1,9 +1,9 @@
 package dk.school.workoverviewagent.source.api;
 
-import dk.school.workoverviewagent.review.contract.ReviewScope;
-import dk.school.workoverviewagent.source.SourceData;
+import dk.school.workoverviewagent.source.contract.SourceData;
+import dk.school.workoverviewagent.source.contract.SourceRequest;
 
 public interface ISourceAdapterLayer {
 
-    SourceData loadSources(String userId, ReviewScope scope);
+    SourceData loadSources(SourceRequest request);
 }
