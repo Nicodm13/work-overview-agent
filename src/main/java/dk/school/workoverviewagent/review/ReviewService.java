@@ -38,8 +38,7 @@ public class ReviewService implements IReviewService {
         var sourceData = sourceAdapterLayer.loadSources(new SourceRequest(
                 request.startsAt(),
                 request.endsAt(),
-                request.sources(),
-                null));
+                request.sources()));
         var evidenceItems = evidenceService.captureEvidence(request, sourceData);
         var statusItems = statusService.applyCurrentStatus(evidenceItems);
         var overviewItems = statusItems.stream()
