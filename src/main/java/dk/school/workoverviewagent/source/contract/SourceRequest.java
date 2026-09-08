@@ -7,8 +7,7 @@ import java.util.List;
 public record SourceRequest(
         Instant startsAt,
         Instant endsAt,
-        List<SourceType> sourceTypes,
-        String filterText) {
+        List<SourceType> sourceTypes) {
 
     public SourceRequest {
         sourceTypes = sourceTypes == null ? List.of() : List.copyOf(sourceTypes);
