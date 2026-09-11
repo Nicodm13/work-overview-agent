@@ -9,23 +9,29 @@ import dk.school.workoverviewagent.status.contract.GetWorkStatusRequest;
 import dk.school.workoverviewagent.status.contract.GetWorkStatusResponse;
 import dk.school.workoverviewagent.status.contract.UpdateWorkStatusRequest;
 import dk.school.workoverviewagent.status.contract.UpdateWorkStatusResponse;
+import dk.school.workoverviewagent.status.repository.IStatusRepository;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 
 @Component
 class StatusService implements IStatusService {
 
     private final IFollowUpService followUpService;
-    private final Map<String, List<WorkStatusRecord>> historyByOwnerAndFollowUpItemId = new LinkedHashMap<>();
+    private final IStatusRepository statusRepository;
 
-    StatusService(IFollowUpService followUpService) {
+    StatusService(
+        IFollowUpService followUpService,
+        IStatusRepository statusRepository) {
         this.followUpService = followUpService;
+        this.statusRepository = statusRepository;
     }
 
     @Override
-    public synchronized GetWorkStatusResponse getWorkStatus(GetWorkStatusRequest request) {
+    public GetWorkStatusResponse getWorkStatus(GetWorkStatusRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateFollowUpItemId(request.followUpItemId());
         followUpService.getFollowUpItem(request.ownerId(), request.followUpItemId());
@@ -55,7 +61,7 @@ class StatusService implements IStatusService {
     }
 
     @Override
-    public synchronized UpdateWorkStatusResponse updateWorkStatus(UpdateWorkStatusRequest request) {
+    public UpdateWorkStatusResponse updateWorkStatus(UpdateWorkStatusRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateFollowUpItemId(request.followUpItemId());
         followUpService.getFollowUpItem(request.ownerId(), request.followUpItemId());
@@ -73,7 +79,7 @@ class StatusService implements IStatusService {
             request.statusSource(),
             updatedAt);
 
-        historyByOwnerAndFollowUpItemId.computeIfAbsent(key(request.ownerId(), request.followUpItemId()), ignored -> new ArrayList<>()).add(record);
+        statusRepository.append(request.ownerId(), request.followUpItemId(), record);
         var history = historyFor(request.ownerId(), request.followUpItemId());
         return new UpdateWorkStatusResponse(
             request.ownerId(),
@@ -86,17 +92,13 @@ class StatusService implements IStatusService {
     }
 
     private List<WorkStatusRecord> historyFor(String ownerId, String followUpItemId) {
-        return List.copyOf(historyByOwnerAndFollowUpItemId.getOrDefault(key(ownerId, followUpItemId), List.of()));
+        return statusRepository.findHistory(ownerId, followUpItemId);
     }
 
     private void validateOwnerId(String ownerId) {
         if (ownerId == null || ownerId.isBlank()) {
             throw new IllegalArgumentException("ownerId must not be blank");
         }
-    }
-
-    private String key(String ownerId, String followUpItemId) {
-        return ownerId + ':' + followUpItemId;
     }
 
     private void validateFollowUpItemId(String followUpItemId) {

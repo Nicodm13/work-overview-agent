@@ -2,6 +2,7 @@ package dk.school.workoverviewagent.evidence;
 
 import dk.school.workoverviewagent.evidence.api.IEvidenceService;
 import dk.school.workoverviewagent.evidence.contract.EvidenceResponse;
+import dk.school.workoverviewagent.evidence.repository.IEvidenceRepository;
 import dk.school.workoverviewagent.model.EvidenceItem;
 import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.EvidenceStatus;
@@ -10,42 +11,42 @@ import dk.school.workoverviewagent.source.contract.SourceData;
 import dk.school.workoverviewagent.source.contract.SourceItem;
 import org.springframework.stereotype.Component;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 @Component
 class EvidenceService implements IEvidenceService {
 
-    private final Map<String, EvidenceItem> latestEvidenceByOwnerAndId = new LinkedHashMap<>();
+    private final IEvidenceRepository evidenceRepository;
+
+    EvidenceService(IEvidenceRepository evidenceRepository) {
+        this.evidenceRepository = evidenceRepository;
+    }
 
     @Override
-    public synchronized List<EvidenceItem> captureEvidence(ReviewRequest request, SourceData sourceData) {
+    public List<EvidenceItem> captureEvidence(ReviewRequest request, SourceData sourceData) {
         validateOwnerId(request.ownerId());
         if (sourceData == null) {
             return List.of();
         }
 
         var evidenceItems = sourceData.items().stream()
-            .map(this::toEvidenceItem)
+            .map(sourceItem -> toEvidenceItem(request.ownerId(), sourceItem))
             .toList();
-        latestEvidenceByOwnerAndId.entrySet().removeIf(entry -> entry.getKey().startsWith(request.ownerId() + ':'));
-        evidenceItems.forEach(evidence -> latestEvidenceByOwnerAndId.put(key(request.ownerId(), evidence.id()), evidence));
+        evidenceItems.forEach(evidence -> evidence.references().forEach(
+            reference -> evidenceRepository.save(request.ownerId(), reference)));
         return evidenceItems;
     }
 
     @Override
-    public synchronized EvidenceResponse getEvidence(String ownerId, String evidenceId) {
+    public EvidenceResponse getEvidence(String ownerId, String evidenceReferenceId) {
         validateOwnerId(ownerId);
-        var evidence = latestEvidenceByOwnerAndId.get(key(ownerId, evidenceId));
+        var reference = evidenceRepository.findById(ownerId, evidenceReferenceId);
         return new EvidenceResponse(
             ownerId,
-            evidenceId,
-            evidence == null ? List.of() : evidence.references());
-    }
-
-    private String key(String ownerId, String evidenceId) {
-        return ownerId + ':' + evidenceId;
+            evidenceReferenceId,
+            reference.map(List::of).orElseGet(List::of));
     }
 
     private void validateOwnerId(String ownerId) {
@@ -54,17 +55,20 @@ class EvidenceService implements IEvidenceService {
         }
     }
 
-    private EvidenceItem toEvidenceItem(SourceItem sourceItem) {
+    private EvidenceItem toEvidenceItem(String ownerId, SourceItem sourceItem) {
         return new EvidenceItem(
             "evidence-" + sourceItem.id(),
             sourceItem.title(),
             evidenceSummary(sourceItem),
             EvidenceStatus.SOURCE_EVIDENCE_CAPTURED,
-            List.of(reference(sourceItem)));
+            List.of(reference(ownerId, sourceItem)));
     }
 
-    private EvidenceReference reference(SourceItem sourceItem) {
+    private EvidenceReference reference(String ownerId, SourceItem sourceItem) {
         return new EvidenceReference(
+            UUID.nameUUIDFromBytes((ownerId + ':' + sourceItem.sourceType() + ':' + sourceItem.id())
+                .getBytes(StandardCharsets.UTF_8))
+                .toString(),
             sourceItem.sourceType(),
             sourceItem.id(),
             sourceItem.occurredAt(),

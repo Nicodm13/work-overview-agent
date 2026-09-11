@@ -19,7 +19,12 @@ public class ReviewStepDefinitions {
 
     @When("the review service reviews {string} to {string}")
     public void reviewInterval(String startsAt, String endsAt) {
-        review = reviewService.reviewWorkContext(new ReviewRequest("user-1", Instant.parse(startsAt), Instant.parse(endsAt), List.of(), ReviewPurpose.DAILY_OVERVIEW));
+        review = reviewService.reviewWorkContext(new ReviewRequest(
+            "user-1",
+            Instant.parse(startsAt),
+            Instant.parse(endsAt),
+            List.of(),
+            ReviewPurpose.DAILY_OVERVIEW));
     }
 
     @Then("the review contains the titles {string}")

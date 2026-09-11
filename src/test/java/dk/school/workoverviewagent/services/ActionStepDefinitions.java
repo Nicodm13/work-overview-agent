@@ -29,13 +29,29 @@ public class ActionStepDefinitions {
     @Given("a Teams action draft for follow-up item {string}")
     public void teamsActionDraft(String title) {
         var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest("user-1", title, "", List.of()));
-        draft = actionService.createDraft(new CreateActionDraftRequest("user-1", ActionType.TEAMS_MESSAGE, item.id(), List.of("Maja Jensen"), null, "Could you share a status update?", null, null, null, List.of(), "Explicit context."));
+        draft = actionService.createDraft(new CreateActionDraftRequest(
+            "user-1",
+            ActionType.TEAMS_MESSAGE,
+            item.id(),
+            List.of("Maja Jensen"),
+            null,
+            "Could you share a status update?",
+            null,
+            null,
+            null,
+            List.of(),
+            "Explicit context."));
     }
 
     @When("the action is executed without final approval")
     public void executeWithoutApproval() {
         try {
-            actionService.executeApprovedAction(new ExecuteApprovedActionRequest("user-1", draft.draft().id(), false, "content-1", Instant.parse("2026-09-07T10:00:00Z")));
+            actionService.executeApprovedAction(new ExecuteApprovedActionRequest(
+                "user-1",
+                draft.draft().id(),
+                false,
+                "content-1",
+                Instant.parse("2026-09-07T10:00:00Z")));
         } catch (Throwable throwable) {
             failure = throwable;
         }
@@ -43,8 +59,18 @@ public class ActionStepDefinitions {
 
     @When("the action is approved and executed")
     public void approveAndExecute() {
-        actionService.approveDraft(new ApproveActionRequest("user-1", draft.draft().id(), true, "content-1", Instant.parse("2026-09-07T09:59:00Z")));
-        execution = actionService.executeApprovedAction(new ExecuteApprovedActionRequest("user-1", draft.draft().id(), true, "content-1", Instant.parse("2026-09-07T10:00:00Z")));
+        actionService.approveDraft(new ApproveActionRequest(
+            "user-1",
+            draft.draft().id(),
+            true,
+            "content-1",
+            Instant.parse("2026-09-07T09:59:00Z")));
+        execution = actionService.executeApprovedAction(new ExecuteApprovedActionRequest(
+            "user-1",
+            draft.draft().id(),
+            true,
+            "content-1",
+            Instant.parse("2026-09-07T10:00:00Z")));
     }
 
     @Then("the action execution is rejected")

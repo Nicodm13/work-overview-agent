@@ -2,30 +2,35 @@ package dk.school.workoverviewagent.action;
 
 import dk.school.workoverviewagent.action.api.IActionService;
 import dk.school.workoverviewagent.action.contract.*;
+import dk.school.workoverviewagent.action.repository.IActionRepository;
 import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.model.ActionDraft;
+import dk.school.workoverviewagent.model.ActionState;
+import dk.school.workoverviewagent.model.ActionStatus;
 import dk.school.workoverviewagent.model.ActionType;
 import dk.school.workoverviewagent.model.AuditLogEntry;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 
 @Component
 class ActionService implements IActionService {
 
     private final IFollowUpService followUpService;
-    private final Map<String, ActionDraft> draftsById = new LinkedHashMap<>();
-    private final Map<String, Instant> approvalsByDraftId = new LinkedHashMap<>();
-    private final Map<String, String> approvedContentByDraftId = new LinkedHashMap<>();
-    private final List<AuditLogEntry> auditEntries = new ArrayList<>();
+    private final IActionRepository actionRepository;
 
-    ActionService(IFollowUpService followUpService) {
+    ActionService(
+        IFollowUpService followUpService,
+        IActionRepository actionRepository) {
         this.followUpService = followUpService;
+        this.actionRepository = actionRepository;
     }
 
     @Override
-    public synchronized CreateActionDraftResponse createDraft(CreateActionDraftRequest request) {
+    public CreateActionDraftResponse createDraft(CreateActionDraftRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateDraftRequest(request);
         followUpService.getFollowUpItem(request.ownerId(), request.followUpItemId());
@@ -43,32 +48,44 @@ class ActionService implements IActionService {
             request.selectedEndsAt(),
             request.agenda(),
             request.editableContext());
-        draftsById.put(draft.id(), draft);
+        actionRepository.saveDraft(draft.ownerId(), draft);
+        actionRepository.saveActionState(new ActionState(
+            draft.ownerId(),
+            draft.id(),
+            ActionStatus.DRAFT,
+            null,
+            Instant.now()));
         return new CreateActionDraftResponse(draft);
     }
 
     @Override
-    public synchronized ApproveActionResponse approveDraft(ApproveActionRequest request) {
+    public ApproveActionResponse approveDraft(ApproveActionRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateOwnerId(request.ownerId());
         var draft = draftFor(request.ownerId(), request.draftId());
         requireFinalApproval(request.finalApproval(), request.approvedContentReference());
         var approvedAt = request.approvedAt() == null ? Instant.now() : request.approvedAt();
-        approvalsByDraftId.put(draft.id(), approvedAt);
-        approvedContentByDraftId.put(draft.id(), request.approvedContentReference());
+        actionRepository.saveActionState(new ActionState(
+            request.ownerId(),
+            draft.id(),
+            ActionStatus.APPROVED,
+            request.approvedContentReference(),
+            approvedAt));
         return new ApproveActionResponse(draft, true, approvedAt);
     }
 
     @Override
-    public synchronized ExecuteApprovedActionResponse executeApprovedAction(ExecuteApprovedActionRequest request) {
+    public ExecuteApprovedActionResponse executeApprovedAction(ExecuteApprovedActionRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateOwnerId(request.ownerId());
         var draft = draftFor(request.ownerId(), request.draftId());
         requireFinalApproval(request.finalApproval(), request.approvedContentReference());
-        if (!approvalsByDraftId.containsKey(draft.id())) {
+        var state = actionRepository.findActionState(request.ownerId(), draft.id())
+            .orElseThrow(() -> new IllegalStateException("draft must be approved before execution"));
+        if (state.status() != ActionStatus.APPROVED) {
             throw new IllegalStateException("draft must be approved before execution");
         }
-        if (!request.approvedContentReference().equals(approvedContentByDraftId.get(draft.id()))) {
+        if (!request.approvedContentReference().equals(state.approvedContentReference())) {
             throw new IllegalArgumentException("approved content does not match the approved draft");
         }
 
@@ -81,28 +98,28 @@ class ActionService implements IActionService {
             executedAt,
             "APPROVED",
             request.approvedContentReference());
-        auditEntries.add(auditEntry);
+        actionRepository.appendAuditEntry(request.ownerId(), auditEntry);
+        actionRepository.saveActionState(new ActionState(
+            request.ownerId(),
+            draft.id(),
+            ActionStatus.EXECUTED,
+            request.approvedContentReference(),
+            executedAt));
         return new ExecuteApprovedActionResponse(auditEntry);
     }
 
     @Override
-    public synchronized List<AuditLogEntry> auditLog(String ownerId) {
+    public List<AuditLogEntry> auditLog(String ownerId) {
         validateOwnerId(ownerId);
-        return auditEntries.stream().filter(entry -> entry.ownerId().equals(ownerId)).toList();
+        return actionRepository.findAuditEntries(ownerId);
     }
 
     private ActionDraft draftFor(String ownerId, String draftId) {
         if (draftId == null || draftId.isBlank()) {
             throw new IllegalArgumentException("draftId must not be blank");
         }
-        var draft = draftsById.get(draftId);
-        if (draft == null) {
-            throw new IllegalArgumentException("draft not found: " + draftId);
-        }
-        if (!draft.ownerId().equals(ownerId)) {
-            throw new IllegalArgumentException("draft does not belong to owner");
-        }
-        return draft;
+        return actionRepository.findDraftById(ownerId, draftId)
+            .orElseThrow(() -> new IllegalArgumentException("draft not found: " + draftId));
     }
 
     private void validateDraftRequest(CreateActionDraftRequest request) {

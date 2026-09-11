@@ -1,6 +1,5 @@
 package dk.school.workoverviewagent.followup.repository;
 
-import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.FollowUpItem;
 
 import java.util.List;
@@ -16,7 +15,8 @@ public interface IFollowUpRepository {
 
     List<FollowUpItem> findAll(String ownerId);
 
-    void addEvidenceReference(String ownerId, String followUpItemId, EvidenceReference reference);
-
-    List<EvidenceReference> findEvidenceReferences(String ownerId, String followUpItemId);
+    void linkEvidenceReference(
+        String ownerId,
+        String followUpItemId,
+        String evidenceReferenceId);
 }

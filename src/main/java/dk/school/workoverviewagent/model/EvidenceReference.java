@@ -3,6 +3,7 @@ package dk.school.workoverviewagent.model;
 import java.time.Instant;
 
 public record EvidenceReference(
+    String id,
     SourceType sourceType,
     String sourceId,
     Instant timestamp,

@@ -11,5 +11,5 @@ public interface IEvidenceService {
 
     List<EvidenceItem> captureEvidence(ReviewRequest request, SourceData sourceData);
 
-    EvidenceResponse getEvidence(String ownerId, String evidenceId);
+    EvidenceResponse getEvidence(String ownerId, String evidenceReferenceId);
 }

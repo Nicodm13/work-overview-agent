@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: work-overview-agent-postgres
+    environment:
+      POSTGRES_DB: work_overview_agent
+      POSTGRES_USER: work_overview_agent
+      POSTGRES_PASSWORD: work_overview_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - work_overview_agent_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U work_overview_agent -d work_overview_agent
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  flyway:
+    build:
+      context: .
+      dockerfile: docker/flyway/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - -locations=filesystem:/flyway/sql
+      - -url=jdbc:postgresql://postgres:5432/work_overview_agent
+      - -user=work_overview_agent
+      - -password=work_overview_agent
+      - migrate
+
+volumes:
+  work_overview_agent_postgres_data:
