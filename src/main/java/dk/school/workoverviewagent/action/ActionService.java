@@ -3,6 +3,7 @@ package dk.school.workoverviewagent.action;
 import dk.school.workoverviewagent.action.api.IActionService;
 import dk.school.workoverviewagent.action.contract.*;
 import dk.school.workoverviewagent.action.repository.IActionRepository;
+import dk.school.workoverviewagent.action.contract.*;
 import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.model.ActionDraft;
 import dk.school.workoverviewagent.model.ActionState;
@@ -15,6 +16,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.stereotype.Component;
+
+import java.time.Instant;
+import java.util.*;
 
 @Component
 class ActionService implements IActionService {

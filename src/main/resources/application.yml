@@ -1,15 +1,15 @@
 spring:
-  application:
-    name: work-overview-agent
-  ai:
-    mcp:
-      server:
+    application:
         name: work-overview-agent
-        version: 0.1.0
-        type: SYNC
-        protocol: STREAMABLE
-        annotation-scanner:
-          enabled: true
+    ai:
+        mcp:
+            server:
+                name: work-overview-agent
+                version: 0.1.0
+                type: SYNC
+                protocol: STREAMABLE
+                annotation-scanner:
+                    enabled: true
   datasource:
     url: ${WORK_OVERVIEW_DATABASE_URL:jdbc:postgresql://localhost:5432/work_overview_agent}
     username: ${WORK_OVERVIEW_DATABASE_USERNAME:work_overview_agent}
@@ -18,4 +18,4 @@ spring:
     enabled: true
 
 server:
-  port: 8080
+    port: 8080

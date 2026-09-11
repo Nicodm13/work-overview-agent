@@ -11,6 +11,10 @@ import dk.school.workoverviewagent.source.contract.SourceData;
 import dk.school.workoverviewagent.source.contract.SourceItem;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import java.util.List;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;

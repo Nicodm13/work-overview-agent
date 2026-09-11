@@ -11,6 +11,9 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.stereotype.Component;
+
+import java.util.*;
 
 /**
  * Stores explicitly requested follow-up items and their evidence links. This service does not

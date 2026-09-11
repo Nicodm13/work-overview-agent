@@ -94,7 +94,8 @@ Open the inspector in your browser and confirm that the server responds and expo
 - Application services are deterministic boundaries. Source adapters fetch and normalize data, Evidence stores source
   references and excerpts, FollowUp stores explicitly requested evidence links, Status stores user-confirmed state, and
   Action stores explicit drafts, approvals, and audit entries. AI reasoning, prioritization, grouping, and semantic
-  interpretation do not belong in these services.
+  interpretation do not belong in
+  these services.
 
 ## Follow-up tracking
 
@@ -110,5 +111,7 @@ decide whether source records are related. One evidence reference can therefore 
 follow-up item can link evidence from several channels.
 
 User-confirmed status records, action drafts, approvals, and action audit entries reference `followUpItemId`, rather
-than a single source-evidence ID. The Evidence and Review services remain evidence-based: they do not infer that work
-has or has not been completed.
+than a single
+source-evidence ID. The Evidence and Review services remain evidence-based: they do not infer that work
+has or has not
+been completed.
