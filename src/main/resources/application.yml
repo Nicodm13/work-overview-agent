@@ -1,6 +1,7 @@
 spring:
     application:
         name: work-overview-agent
+
     ai:
         mcp:
             server:
@@ -10,12 +11,14 @@ spring:
                 protocol: STREAMABLE
                 annotation-scanner:
                     enabled: true
-  datasource:
-    url: ${WORK_OVERVIEW_DATABASE_URL:jdbc:postgresql://localhost:5432/work_overview_agent}
-    username: ${WORK_OVERVIEW_DATABASE_USERNAME:work_overview_agent}
-    password: ${WORK_OVERVIEW_DATABASE_PASSWORD:work_overview_agent}
-  flyway:
-    enabled: true
+
+    datasource:
+        url: ${WORK_OVERVIEW_DATABASE_URL:jdbc:postgresql://localhost:5432/work_overview_agent}
+        username: ${WORK_OVERVIEW_DATABASE_USERNAME:work_overview_agent}
+        password: ${WORK_OVERVIEW_DATABASE_PASSWORD:work_overview_agent}
+
+    flyway:
+        enabled: true
 
 server:
     port: 8080
