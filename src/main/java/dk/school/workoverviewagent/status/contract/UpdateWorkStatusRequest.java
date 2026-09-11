@@ -5,7 +5,7 @@ import dk.school.workoverviewagent.model.WorkStatus;
 import java.time.Instant;
 
 public record UpdateWorkStatusRequest(
-        String evidenceId,
+        String followUpItemId,
         WorkStatus workStatus,
         String reason,
         StatusSource statusSource,

@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.List;
 
 public record GetWorkStatusResponse(
-        String evidenceId,
+        String followUpItemId,
         WorkStatus workStatus,
         StatusSource statusSource,
         String reason,

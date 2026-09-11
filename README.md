@@ -54,4 +54,12 @@ Open the inspector in your browser and confirm that the server responds and expo
 
 - This server currently uses the Spring AI MCP WebMVC starter with Streamable HTTP.
 - The MCP endpoint is intended for local development unless additional security is added.
-- Application services are deterministic boundaries. Source adapters fetch and normalize data, Evidence records source references and excerpts, Status stores user-confirmed state, and Action builds explicit drafts. AI reasoning, prioritization, and semantic interpretation should not be implemented inside these services.
+- Application services are deterministic boundaries. Source adapters fetch and normalize data, Evidence records source references and excerpts, FollowUp stores explicitly requested evidence links, Status stores user-confirmed state, and Action builds explicit drafts. AI reasoning, prioritization, grouping, and semantic interpretation do not belong in these services.
+
+## Follow-up tracking
+
+The prototype currently keeps follow-up state in memory only. No database or other persistence is configured.
+
+`FollowUpService` creates a stable UUID-backed `FollowUpItem` and stores the evidence references explicitly supplied by the MCP client/AI. It does not decide whether source records are related. A follow-up item can therefore link evidence from several channels, while the individual source evidence remains independent.
+
+User-confirmed status records, action drafts, and action audit entries reference `followUpItemId`, rather than a single source-evidence ID. The Evidence and Review services remain evidence-based: they do not infer that work has or has not been completed.

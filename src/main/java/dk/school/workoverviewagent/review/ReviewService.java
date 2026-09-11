@@ -1,14 +1,14 @@
 package dk.school.workoverviewagent.review;
 
 import dk.school.workoverviewagent.evidence.api.IEvidenceService;
-import dk.school.workoverviewagent.model.StatusItem;
+import dk.school.workoverviewagent.model.StatusSource;
+import dk.school.workoverviewagent.model.WorkStatus;
 import dk.school.workoverviewagent.review.api.IReviewService;
 import dk.school.workoverviewagent.review.contract.OverviewItem;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.review.contract.ReviewResponse;
 import dk.school.workoverviewagent.source.api.ISourceAdapterLayer;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
-import dk.school.workoverviewagent.status.api.IStatusService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -20,15 +20,12 @@ public class ReviewService implements IReviewService {
 
     private final ISourceAdapterLayer sourceAdapterLayer;
     private final IEvidenceService evidenceService;
-    private final IStatusService statusService;
 
     public ReviewService(
             ISourceAdapterLayer sourceAdapterLayer,
-            IEvidenceService evidenceService,
-            IStatusService statusService) {
+            IEvidenceService evidenceService) {
         this.sourceAdapterLayer = sourceAdapterLayer;
         this.evidenceService = evidenceService;
-        this.statusService = statusService;
     }
 
     @Override
@@ -40,8 +37,7 @@ public class ReviewService implements IReviewService {
                 request.endsAt(),
                 request.sources()));
         var evidenceItems = evidenceService.captureEvidence(request, sourceData);
-        var statusItems = statusService.applyCurrentStatus(evidenceItems);
-        var overviewItems = statusItems.stream()
+        var overviewItems = evidenceItems.stream()
                 .map(this::toOverviewItem)
                 .toList();
 
@@ -53,8 +49,7 @@ public class ReviewService implements IReviewService {
                 sourceData == null ? List.of() : sourceData.limitations());
     }
 
-    private OverviewItem toOverviewItem(StatusItem statusItem) {
-        var evidenceItem = statusItem.evidenceItem();
+    private OverviewItem toOverviewItem(dk.school.workoverviewagent.model.EvidenceItem evidenceItem) {
         return new OverviewItem(
                 evidenceItem.id(),
                 evidenceItem.title(),
@@ -62,7 +57,7 @@ public class ReviewService implements IReviewService {
                 "UNRANKED",
                 evidenceItem.evidenceStatus(),
                 evidenceItem.references(),
-                statusItem.workStatus(),
-                statusItem.statusSource());
+                WorkStatus.UNVERIFIED,
+                StatusSource.DIGITAL_EVIDENCE);
     }
 }

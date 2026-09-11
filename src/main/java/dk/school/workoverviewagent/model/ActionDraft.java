@@ -6,7 +6,7 @@ import java.util.List;
 public record ActionDraft(
         String id,
         ActionType actionType,
-        String evidenceId,
+        String followUpItemId,
         List<String> recipients,
         String subject,
         String body,

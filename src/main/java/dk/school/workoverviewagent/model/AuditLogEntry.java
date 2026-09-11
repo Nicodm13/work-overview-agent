@@ -4,7 +4,7 @@ import java.time.Instant;
 
 public record AuditLogEntry(
         String id,
-        String evidenceId,
+        String followUpItemId,
         String actionType,
         Instant timestamp,
         String approvalStatus,

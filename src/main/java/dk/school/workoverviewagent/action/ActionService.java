@@ -7,6 +7,7 @@ import dk.school.workoverviewagent.action.contract.CreateActionDraftResponse;
 import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionRequest;
 import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionResponse;
 import dk.school.workoverviewagent.action.api.IActionService;
+import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.model.ActionDraft;
 import dk.school.workoverviewagent.model.ActionType;
 import dk.school.workoverviewagent.model.AuditLogEntry;
@@ -22,20 +23,26 @@ import org.springframework.stereotype.Component;
 @Component
 class ActionService implements IActionService {
 
+    private final IFollowUpService followUpService;
     private final Map<String, ActionDraft> draftsById = new LinkedHashMap<>();
     private final Map<String, Instant> approvalsByDraftId = new LinkedHashMap<>();
     private final Map<String, String> approvedContentByDraftId = new LinkedHashMap<>();
     private final List<AuditLogEntry> auditEntries = new ArrayList<>();
 
+    ActionService(IFollowUpService followUpService) {
+        this.followUpService = followUpService;
+    }
+
     @Override
     public synchronized CreateActionDraftResponse createDraft(CreateActionDraftRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateDraftRequest(request);
+        followUpService.getFollowUpItem(request.followUpItemId());
 
         var draft = new ActionDraft(
                 UUID.randomUUID().toString(),
                 request.actionType(),
-                request.evidenceId(),
+                request.followUpItemId(),
                 request.recipients(),
                 request.subject(),
                 request.body(),
@@ -74,7 +81,7 @@ class ActionService implements IActionService {
         var executedAt = request.executedAt() == null ? Instant.now() : request.executedAt();
         var auditEntry = new AuditLogEntry(
                 UUID.randomUUID().toString(),
-                draft.evidenceId(),
+                draft.followUpItemId(),
                 draft.actionType().name(),
                 executedAt,
                 "APPROVED",
@@ -101,8 +108,8 @@ class ActionService implements IActionService {
 
     private void validateDraftRequest(CreateActionDraftRequest request) {
         Objects.requireNonNull(request.actionType(), "actionType must not be null");
-        if (request.evidenceId() == null || request.evidenceId().isBlank()) {
-            throw new IllegalArgumentException("evidenceId must not be blank");
+        if (request.followUpItemId() == null || request.followUpItemId().isBlank()) {
+            throw new IllegalArgumentException("followUpItemId must not be blank");
         }
         if (request.actionType() == ActionType.MEETING_INVITATION
                 && request.selectedStartsAt() != null

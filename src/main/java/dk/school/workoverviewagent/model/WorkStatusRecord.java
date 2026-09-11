@@ -4,7 +4,7 @@ import java.time.Instant;
 
 public record WorkStatusRecord(
         String id,
-        String evidenceId,
+        String followUpItemId,
         WorkStatus status,
         String reason,
         StatusSource statusSource,
