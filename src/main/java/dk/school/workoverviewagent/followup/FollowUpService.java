@@ -3,15 +3,10 @@ package dk.school.workoverviewagent.followup;
 import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.followup.contract.AttachEvidenceToFollowUpRequest;
 import dk.school.workoverviewagent.followup.contract.CreateFollowUpItemRequest;
-import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.FollowUpItem;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
 import org.springframework.stereotype.Component;
+
+import java.util.*;
 
 /**
  * Stores explicitly requested follow-up items and their evidence links. This service does not
@@ -28,11 +23,11 @@ class FollowUpService implements IFollowUpService {
         validateTitle(request.title());
 
         var item = new FollowUpItem(
-                UUID.randomUUID().toString(),
-                requiredOwnerId(request.ownerId()),
-                request.title(),
-                request.summary() == null ? "" : request.summary(),
-                request.evidenceReferences());
+            UUID.randomUUID().toString(),
+            requiredOwnerId(request.ownerId()),
+            request.title(),
+            request.summary() == null ? "" : request.summary(),
+            request.evidenceReferences());
         followUpItemsByOwnerAndId.put(key(item.ownerId(), item.id()), item);
         return item;
     }

@@ -1,15 +1,16 @@
 package dk.school.workoverviewagent.review.contract;
 
 import dk.school.workoverviewagent.model.SourceType;
+
 import java.time.Instant;
 import java.util.List;
 
 public record ReviewRequest(
-        String ownerId,
-        Instant startsAt,
-        Instant endsAt,
-        List<SourceType> sources,
-        ReviewPurpose purpose) {
+    String ownerId,
+    Instant startsAt,
+    Instant endsAt,
+    List<SourceType> sources,
+    ReviewPurpose purpose) {
 
     public ReviewRequest {
         if (ownerId == null || ownerId.isBlank()) {

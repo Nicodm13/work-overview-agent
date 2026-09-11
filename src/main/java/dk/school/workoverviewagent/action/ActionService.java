@@ -1,24 +1,15 @@
 package dk.school.workoverviewagent.action;
 
-import dk.school.workoverviewagent.action.contract.ApproveActionRequest;
-import dk.school.workoverviewagent.action.contract.ApproveActionResponse;
-import dk.school.workoverviewagent.action.contract.CreateActionDraftRequest;
-import dk.school.workoverviewagent.action.contract.CreateActionDraftResponse;
-import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionRequest;
-import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionResponse;
 import dk.school.workoverviewagent.action.api.IActionService;
+import dk.school.workoverviewagent.action.contract.*;
 import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.model.ActionDraft;
 import dk.school.workoverviewagent.model.ActionType;
 import dk.school.workoverviewagent.model.AuditLogEntry;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
 import org.springframework.stereotype.Component;
+
+import java.time.Instant;
+import java.util.*;
 
 @Component
 class ActionService implements IActionService {
@@ -40,18 +31,18 @@ class ActionService implements IActionService {
         followUpService.getFollowUpItem(request.ownerId(), request.followUpItemId());
 
         var draft = new ActionDraft(
-                UUID.randomUUID().toString(),
-                request.ownerId(),
-                request.actionType(),
-                request.followUpItemId(),
-                request.recipients(),
-                request.subject(),
-                request.body(),
-                request.meetingTitle(),
-                request.selectedStartsAt(),
-                request.selectedEndsAt(),
-                request.agenda(),
-                request.editableContext());
+            UUID.randomUUID().toString(),
+            request.ownerId(),
+            request.actionType(),
+            request.followUpItemId(),
+            request.recipients(),
+            request.subject(),
+            request.body(),
+            request.meetingTitle(),
+            request.selectedStartsAt(),
+            request.selectedEndsAt(),
+            request.agenda(),
+            request.editableContext());
         draftsById.put(draft.id(), draft);
         return new CreateActionDraftResponse(draft);
     }
@@ -83,13 +74,13 @@ class ActionService implements IActionService {
 
         var executedAt = request.executedAt() == null ? Instant.now() : request.executedAt();
         var auditEntry = new AuditLogEntry(
-                UUID.randomUUID().toString(),
-                request.ownerId(),
-                draft.followUpItemId(),
-                draft.actionType().name(),
-                executedAt,
-                "APPROVED",
-                request.approvedContentReference());
+            UUID.randomUUID().toString(),
+            request.ownerId(),
+            draft.followUpItemId(),
+            draft.actionType().name(),
+            executedAt,
+            "APPROVED",
+            request.approvedContentReference());
         auditEntries.add(auditEntry);
         return new ExecuteApprovedActionResponse(auditEntry);
     }
@@ -121,9 +112,9 @@ class ActionService implements IActionService {
             throw new IllegalArgumentException("followUpItemId must not be blank");
         }
         if (request.actionType() == ActionType.MEETING_INVITATION
-                && request.selectedStartsAt() != null
-                && request.selectedEndsAt() != null
-                && request.selectedEndsAt().isBefore(request.selectedStartsAt())) {
+            && request.selectedStartsAt() != null
+            && request.selectedEndsAt() != null
+            && request.selectedEndsAt().isBefore(request.selectedStartsAt())) {
             throw new IllegalArgumentException("selectedEndsAt must not be before selectedStartsAt");
         }
     }

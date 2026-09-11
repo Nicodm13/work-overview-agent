@@ -2,6 +2,8 @@ package dk.school.workoverviewagent.source.mock;
 
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.source.contract.SourceItem;
+import org.springframework.stereotype.Component;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -12,15 +14,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.stereotype.Component;
 
 @Component
 public class MockSourceDataLoader {
 
     public List<SourceItem> loadItems(String csvResource, SourceType sourceType) {
         return readCsv(csvResource).stream()
-                .map(row -> toSourceItem(row, sourceType))
-                .toList();
+            .map(row -> toSourceItem(row, sourceType))
+            .toList();
     }
 
     private SourceItem toSourceItem(Map<String, String> row, SourceType sourceType) {
@@ -29,14 +30,14 @@ public class MockSourceDataLoader {
             content = readDocument(row.get("document"));
         }
         return new SourceItem(
-                required(row, "id"),
-                sourceType,
-                Instant.parse(required(row, "occurredAt")),
-                required(row, "title"),
-                content,
-                required(row, "senderOrOrganizer"),
-                participants(row.get("participants")),
-                attributes(row));
+            required(row, "id"),
+            sourceType,
+            Instant.parse(required(row, "occurredAt")),
+            required(row, "title"),
+            content,
+            required(row, "senderOrOrganizer"),
+            participants(row.get("participants")),
+            attributes(row));
     }
 
     private List<Map<String, String>> readCsv(String resource) {
@@ -50,14 +51,14 @@ public class MockSourceDataLoader {
                     return List.of();
                 }
                 var headerLine = lines.getFirst().equalsIgnoreCase("sep=,")
-                        ? lines.get(1)
-                        : lines.getFirst();
+                    ? lines.get(1)
+                    : lines.getFirst();
                 var headers = parseCsvLine(headerLine);
                 return lines.stream()
-                        .skip(lines.getFirst().equalsIgnoreCase("sep=,") ? 2 : 1)
-                        .filter(line -> !line.isBlank())
-                        .map(line -> row(headers, parseCsvLine(line)))
-                        .toList();
+                    .skip(lines.getFirst().equalsIgnoreCase("sep=,") ? 2 : 1)
+                    .filter(line -> !line.isBlank())
+                    .map(line -> row(headers, parseCsvLine(line)))
+                    .toList();
             }
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read mock data resource: " + resource, exception);
@@ -121,9 +122,9 @@ public class MockSourceDataLoader {
         var attributes = new LinkedHashMap<String, String>();
         row.forEach((key, value) -> {
             if (!List.of("id", "occurredAt", "title", "content", "document", "senderOrOrganizer", "participants")
-                    .contains(key)
-                    && value != null
-                    && !value.isBlank()) {
+                .contains(key)
+                && value != null
+                && !value.isBlank()) {
                 attributes.put(key, value);
             }
         });

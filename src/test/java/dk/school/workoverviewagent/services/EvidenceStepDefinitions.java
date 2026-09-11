@@ -1,6 +1,5 @@
 package dk.school.workoverviewagent.services;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import dk.school.workoverviewagent.evidence.api.IEvidenceService;
 import dk.school.workoverviewagent.model.EvidenceStatus;
 import dk.school.workoverviewagent.model.SourceType;
@@ -10,13 +9,17 @@ import dk.school.workoverviewagent.source.contract.SourceData;
 import dk.school.workoverviewagent.source.contract.SourceItem;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Autowired;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class EvidenceStepDefinitions {
-    @Autowired private IEvidenceService evidenceService;
+    @Autowired
+    private IEvidenceService evidenceService;
     private List<dk.school.workoverviewagent.model.EvidenceItem> evidenceItems;
 
     @Given("a normalized Teams source item with id {string}")

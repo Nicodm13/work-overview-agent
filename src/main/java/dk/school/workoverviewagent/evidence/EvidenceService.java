@@ -8,10 +8,11 @@ import dk.school.workoverviewagent.model.EvidenceStatus;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.contract.SourceData;
 import dk.school.workoverviewagent.source.contract.SourceItem;
+import org.springframework.stereotype.Component;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.stereotype.Component;
 
 @Component
 class EvidenceService implements IEvidenceService {
@@ -26,8 +27,8 @@ class EvidenceService implements IEvidenceService {
         }
 
         var evidenceItems = sourceData.items().stream()
-                .map(this::toEvidenceItem)
-                .toList();
+            .map(this::toEvidenceItem)
+            .toList();
         latestEvidenceByOwnerAndId.entrySet().removeIf(entry -> entry.getKey().startsWith(request.ownerId() + ':'));
         evidenceItems.forEach(evidence -> latestEvidenceByOwnerAndId.put(key(request.ownerId(), evidence.id()), evidence));
         return evidenceItems;
@@ -38,9 +39,9 @@ class EvidenceService implements IEvidenceService {
         validateOwnerId(ownerId);
         var evidence = latestEvidenceByOwnerAndId.get(key(ownerId, evidenceId));
         return new EvidenceResponse(
-                ownerId,
-                evidenceId,
-                evidence == null ? List.of() : evidence.references());
+            ownerId,
+            evidenceId,
+            evidence == null ? List.of() : evidence.references());
     }
 
     private String key(String ownerId, String evidenceId) {
@@ -55,22 +56,22 @@ class EvidenceService implements IEvidenceService {
 
     private EvidenceItem toEvidenceItem(SourceItem sourceItem) {
         return new EvidenceItem(
-                "evidence-" + sourceItem.id(),
-                sourceItem.title(),
-                evidenceSummary(sourceItem),
-                EvidenceStatus.SOURCE_EVIDENCE_CAPTURED,
-                List.of(reference(sourceItem)));
+            "evidence-" + sourceItem.id(),
+            sourceItem.title(),
+            evidenceSummary(sourceItem),
+            EvidenceStatus.SOURCE_EVIDENCE_CAPTURED,
+            List.of(reference(sourceItem)));
     }
 
     private EvidenceReference reference(SourceItem sourceItem) {
         return new EvidenceReference(
-                sourceItem.sourceType(),
-                sourceItem.id(),
-                sourceItem.occurredAt(),
-                sourceItem.senderOrOrganizer(),
-                sourceItem.title(),
-                excerpt(sourceItem.content()),
-                1.0);
+            sourceItem.sourceType(),
+            sourceItem.id(),
+            sourceItem.occurredAt(),
+            sourceItem.senderOrOrganizer(),
+            sourceItem.title(),
+            excerpt(sourceItem.content()),
+            1.0);
     }
 
     private String evidenceSummary(SourceItem sourceItem) {

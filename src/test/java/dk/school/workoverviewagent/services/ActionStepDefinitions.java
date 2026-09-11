@@ -1,23 +1,27 @@
 package dk.school.workoverviewagent.services;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import dk.school.workoverviewagent.action.api.IActionService;
 import dk.school.workoverviewagent.action.contract.ApproveActionRequest;
 import dk.school.workoverviewagent.action.contract.CreateActionDraftRequest;
 import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionRequest;
-import dk.school.workoverviewagent.model.ActionType;
 import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.followup.contract.CreateFollowUpItemRequest;
+import dk.school.workoverviewagent.model.ActionType;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
-import java.time.Instant;
-import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.Instant;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
 public class ActionStepDefinitions {
-    @Autowired private IActionService actionService;
-    @Autowired private IFollowUpService followUpService;
+    @Autowired
+    private IActionService actionService;
+    @Autowired
+    private IFollowUpService followUpService;
     private dk.school.workoverviewagent.action.contract.CreateActionDraftResponse draft;
     private dk.school.workoverviewagent.action.contract.ExecuteApprovedActionResponse execution;
     private Throwable failure;

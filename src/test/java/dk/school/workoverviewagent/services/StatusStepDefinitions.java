@@ -1,22 +1,26 @@
 package dk.school.workoverviewagent.services;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import dk.school.workoverviewagent.model.StatusSource;
-import dk.school.workoverviewagent.model.WorkStatus;
 import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.followup.contract.CreateFollowUpItemRequest;
+import dk.school.workoverviewagent.model.StatusSource;
+import dk.school.workoverviewagent.model.WorkStatus;
 import dk.school.workoverviewagent.status.api.IStatusService;
 import dk.school.workoverviewagent.status.contract.GetWorkStatusRequest;
 import dk.school.workoverviewagent.status.contract.UpdateWorkStatusRequest;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
-import java.time.Instant;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.Instant;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
 public class StatusStepDefinitions {
-    @Autowired private IStatusService statusService;
-    @Autowired private IFollowUpService followUpService;
+    @Autowired
+    private IStatusService statusService;
+    @Autowired
+    private IFollowUpService followUpService;
     private WorkStatus currentStatus;
     private StatusSource currentSource;
 
