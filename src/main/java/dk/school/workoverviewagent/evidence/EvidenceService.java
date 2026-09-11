@@ -16,10 +16,11 @@ import org.springframework.stereotype.Component;
 @Component
 class EvidenceService implements IEvidenceService {
 
-    private final Map<String, EvidenceItem> latestEvidenceById = new LinkedHashMap<>();
+    private final Map<String, EvidenceItem> latestEvidenceByOwnerAndId = new LinkedHashMap<>();
 
     @Override
     public synchronized List<EvidenceItem> captureEvidence(ReviewRequest request, SourceData sourceData) {
+        validateOwnerId(request.ownerId());
         if (sourceData == null) {
             return List.of();
         }
@@ -27,17 +28,29 @@ class EvidenceService implements IEvidenceService {
         var evidenceItems = sourceData.items().stream()
                 .map(this::toEvidenceItem)
                 .toList();
-        latestEvidenceById.clear();
-        evidenceItems.forEach(evidence -> latestEvidenceById.put(evidence.id(), evidence));
+        latestEvidenceByOwnerAndId.entrySet().removeIf(entry -> entry.getKey().startsWith(request.ownerId() + ':'));
+        evidenceItems.forEach(evidence -> latestEvidenceByOwnerAndId.put(key(request.ownerId(), evidence.id()), evidence));
         return evidenceItems;
     }
 
     @Override
-    public synchronized EvidenceResponse getEvidence(String evidenceId) {
-        var evidence = latestEvidenceById.get(evidenceId);
+    public synchronized EvidenceResponse getEvidence(String ownerId, String evidenceId) {
+        validateOwnerId(ownerId);
+        var evidence = latestEvidenceByOwnerAndId.get(key(ownerId, evidenceId));
         return new EvidenceResponse(
+                ownerId,
                 evidenceId,
                 evidence == null ? List.of() : evidence.references());
+    }
+
+    private String key(String ownerId, String evidenceId) {
+        return ownerId + ':' + evidenceId;
+    }
+
+    private void validateOwnerId(String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            throw new IllegalArgumentException("ownerId must not be blank");
+        }
     }
 
     private EvidenceItem toEvidenceItem(SourceItem sourceItem) {

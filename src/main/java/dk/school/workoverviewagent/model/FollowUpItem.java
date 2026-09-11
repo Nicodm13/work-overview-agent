@@ -4,6 +4,7 @@ import java.util.List;
 
 public record FollowUpItem(
         String id,
+        String ownerId,
         String title,
         String summary,
         List<EvidenceReference> evidenceReferences) {

@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 @Component
 class FollowUpService implements IFollowUpService {
 
-    private final Map<String, FollowUpItem> followUpItemsById = new LinkedHashMap<>();
+    private final Map<String, FollowUpItem> followUpItemsByOwnerAndId = new LinkedHashMap<>();
 
     @Override
     public synchronized FollowUpItem createFollowUpItem(CreateFollowUpItemRequest request) {
@@ -29,17 +29,19 @@ class FollowUpService implements IFollowUpService {
 
         var item = new FollowUpItem(
                 UUID.randomUUID().toString(),
+                requiredOwnerId(request.ownerId()),
                 request.title(),
                 request.summary() == null ? "" : request.summary(),
                 request.evidenceReferences());
-        followUpItemsById.put(item.id(), item);
+        followUpItemsByOwnerAndId.put(key(item.ownerId(), item.id()), item);
         return item;
     }
 
     @Override
-    public synchronized FollowUpItem getFollowUpItem(String followUpItemId) {
+    public synchronized FollowUpItem getFollowUpItem(String ownerId, String followUpItemId) {
+        requiredOwnerId(ownerId);
         validateFollowUpItemId(followUpItemId);
-        var item = followUpItemsById.get(followUpItemId);
+        var item = followUpItemsByOwnerAndId.get(key(ownerId, followUpItemId));
         if (item == null) {
             throw new IllegalArgumentException("follow-up item not found: " + followUpItemId);
         }
@@ -50,19 +52,20 @@ class FollowUpService implements IFollowUpService {
     public synchronized FollowUpItem attachEvidence(AttachEvidenceToFollowUpRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(request.evidenceReference(), "evidenceReference must not be null");
-        var item = getFollowUpItem(request.followUpItemId());
+        var item = getFollowUpItem(request.ownerId(), request.followUpItemId());
         var references = new ArrayList<>(item.evidenceReferences());
         if (!references.contains(request.evidenceReference())) {
             references.add(request.evidenceReference());
         }
-        var updatedItem = new FollowUpItem(item.id(), item.title(), item.summary(), references);
-        followUpItemsById.put(updatedItem.id(), updatedItem);
+        var updatedItem = new FollowUpItem(item.id(), item.ownerId(), item.title(), item.summary(), references);
+        followUpItemsByOwnerAndId.put(key(updatedItem.ownerId(), updatedItem.id()), updatedItem);
         return updatedItem;
     }
 
     @Override
-    public synchronized List<FollowUpItem> listFollowUpItems() {
-        return List.copyOf(followUpItemsById.values());
+    public synchronized List<FollowUpItem> listFollowUpItems(String ownerId) {
+        requiredOwnerId(ownerId);
+        return followUpItemsByOwnerAndId.values().stream().filter(item -> item.ownerId().equals(ownerId)).toList();
     }
 
     private void validateTitle(String title) {
@@ -75,5 +78,16 @@ class FollowUpService implements IFollowUpService {
         if (followUpItemId == null || followUpItemId.isBlank()) {
             throw new IllegalArgumentException("followUpItemId must not be blank");
         }
+    }
+
+    private String requiredOwnerId(String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            throw new IllegalArgumentException("ownerId must not be blank");
+        }
+        return ownerId;
+    }
+
+    private String key(String ownerId, String followUpItemId) {
+        return ownerId + ':' + followUpItemId;
     }
 }

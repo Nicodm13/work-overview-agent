@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 
 public record CreateActionDraftRequest(
+        String ownerId,
         ActionType actionType,
         String followUpItemId,
         List<String> recipients,

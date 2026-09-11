@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.List;
 
 public record GetWorkStatusResponse(
+        String ownerId,
         String followUpItemId,
         WorkStatus workStatus,
         StatusSource statusSource,

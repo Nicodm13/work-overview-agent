@@ -5,6 +5,7 @@ import java.util.List;
 
 public record ActionDraft(
         String id,
+        String ownerId,
         ActionType actionType,
         String followUpItemId,
         List<String> recipients,

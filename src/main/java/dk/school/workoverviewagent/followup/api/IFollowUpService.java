@@ -9,9 +9,9 @@ public interface IFollowUpService {
 
     FollowUpItem createFollowUpItem(CreateFollowUpItemRequest request);
 
-    FollowUpItem getFollowUpItem(String followUpItemId);
+    FollowUpItem getFollowUpItem(String ownerId, String followUpItemId);
 
     FollowUpItem attachEvidence(AttachEvidenceToFollowUpRequest request);
 
-    List<FollowUpItem> listFollowUpItems();
+    List<FollowUpItem> listFollowUpItems(String ownerId);
 }

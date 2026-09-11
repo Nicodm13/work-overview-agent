@@ -31,6 +31,7 @@ public class ReviewTools {
             @McpToolParam(description = "Start of the interval as an ISO-8601 instant.", required = true) String startsAt,
             @McpToolParam(description = "End of the interval as an ISO-8601 instant.", required = true) String endsAt) {
         var request = new ReviewRequest(
+                "local-user",
                 Instant.parse(startsAt),
                 Instant.parse(endsAt),
                 List.of(),

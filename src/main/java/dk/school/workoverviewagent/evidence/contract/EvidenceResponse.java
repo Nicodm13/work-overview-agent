@@ -4,6 +4,7 @@ import dk.school.workoverviewagent.model.EvidenceReference;
 import java.util.List;
 
 public record EvidenceResponse(
+        String ownerId,
         String evidenceId,
         List<EvidenceReference> references) {
 

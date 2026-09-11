@@ -33,6 +33,7 @@ public class ReviewService implements IReviewService {
         Objects.requireNonNull(request, "request must not be null");
 
         var sourceData = sourceAdapterLayer.loadSources(new SourceRequest(
+                request.ownerId(),
                 request.startsAt(),
                 request.endsAt(),
                 request.sources()));

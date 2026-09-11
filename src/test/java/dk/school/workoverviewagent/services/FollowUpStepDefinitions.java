@@ -20,7 +20,7 @@ public class FollowUpStepDefinitions {
 
     @Given("a follow-up item with Teams evidence")
     public void followUpItemWithTeamsEvidence() {
-        followUpItem = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+        followUpItem = followUpService.createFollowUpItem(new CreateFollowUpItemRequest("user-1",
                 "Test environment clarification",
                 "Possible follow-up based on selected evidence.",
                 List.of(reference(SourceType.TEAMS, "teams-1"))));
@@ -29,7 +29,7 @@ public class FollowUpStepDefinitions {
     @When("email evidence is attached to the follow-up item")
     public void attachEmailEvidence() {
         followUpItem = followUpService.attachEvidence(new AttachEvidenceToFollowUpRequest(
-                followUpItem.id(), reference(SourceType.OUTLOOK, "email-1")));
+                "user-1", followUpItem.id(), reference(SourceType.OUTLOOK, "email-1")));
     }
 
     @Then("the follow-up item contains Teams and OUTLOOK evidence")
