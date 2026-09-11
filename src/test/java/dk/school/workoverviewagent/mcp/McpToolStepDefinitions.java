@@ -1,13 +1,14 @@
 package dk.school.workoverviewagent.mcp;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import dk.school.workoverviewagent.mcp.ReviewTools;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 public class McpToolStepDefinitions {
-    @Autowired private ReviewTools reviewTools;
+    @Autowired
+    private ReviewTools reviewTools;
     private dk.school.workoverviewagent.review.contract.ReviewResponse response;
 
     @When("the get_review MCP tool is called from {string} to {string}")

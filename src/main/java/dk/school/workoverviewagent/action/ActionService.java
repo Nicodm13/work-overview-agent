@@ -1,49 +1,48 @@
 package dk.school.workoverviewagent.action;
 
-import dk.school.workoverviewagent.action.contract.ApproveActionRequest;
-import dk.school.workoverviewagent.action.contract.ApproveActionResponse;
-import dk.school.workoverviewagent.action.contract.CreateActionDraftRequest;
-import dk.school.workoverviewagent.action.contract.CreateActionDraftResponse;
-import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionRequest;
-import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionResponse;
 import dk.school.workoverviewagent.action.api.IActionService;
+import dk.school.workoverviewagent.action.contract.*;
+import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.model.ActionDraft;
 import dk.school.workoverviewagent.model.ActionType;
 import dk.school.workoverviewagent.model.AuditLogEntry;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
 import org.springframework.stereotype.Component;
+
+import java.time.Instant;
+import java.util.*;
 
 @Component
 class ActionService implements IActionService {
 
+    private final IFollowUpService followUpService;
     private final Map<String, ActionDraft> draftsById = new LinkedHashMap<>();
     private final Map<String, Instant> approvalsByDraftId = new LinkedHashMap<>();
     private final Map<String, String> approvedContentByDraftId = new LinkedHashMap<>();
     private final List<AuditLogEntry> auditEntries = new ArrayList<>();
 
+    ActionService(IFollowUpService followUpService) {
+        this.followUpService = followUpService;
+    }
+
     @Override
     public synchronized CreateActionDraftResponse createDraft(CreateActionDraftRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateDraftRequest(request);
+        followUpService.getFollowUpItem(request.ownerId(), request.followUpItemId());
 
         var draft = new ActionDraft(
-                UUID.randomUUID().toString(),
-                request.actionType(),
-                request.evidenceId(),
-                request.recipients(),
-                request.subject(),
-                request.body(),
-                request.meetingTitle(),
-                request.selectedStartsAt(),
-                request.selectedEndsAt(),
-                request.agenda(),
-                request.editableContext());
+            UUID.randomUUID().toString(),
+            request.ownerId(),
+            request.actionType(),
+            request.followUpItemId(),
+            request.recipients(),
+            request.subject(),
+            request.body(),
+            request.meetingTitle(),
+            request.selectedStartsAt(),
+            request.selectedEndsAt(),
+            request.agenda(),
+            request.editableContext());
         draftsById.put(draft.id(), draft);
         return new CreateActionDraftResponse(draft);
     }
@@ -51,7 +50,8 @@ class ActionService implements IActionService {
     @Override
     public synchronized ApproveActionResponse approveDraft(ApproveActionRequest request) {
         Objects.requireNonNull(request, "request must not be null");
-        var draft = draftFor(request.draftId());
+        validateOwnerId(request.ownerId());
+        var draft = draftFor(request.ownerId(), request.draftId());
         requireFinalApproval(request.finalApproval(), request.approvedContentReference());
         var approvedAt = request.approvedAt() == null ? Instant.now() : request.approvedAt();
         approvalsByDraftId.put(draft.id(), approvedAt);
@@ -62,7 +62,8 @@ class ActionService implements IActionService {
     @Override
     public synchronized ExecuteApprovedActionResponse executeApprovedAction(ExecuteApprovedActionRequest request) {
         Objects.requireNonNull(request, "request must not be null");
-        var draft = draftFor(request.draftId());
+        validateOwnerId(request.ownerId());
+        var draft = draftFor(request.ownerId(), request.draftId());
         requireFinalApproval(request.finalApproval(), request.approvedContentReference());
         if (!approvalsByDraftId.containsKey(draft.id())) {
             throw new IllegalStateException("draft must be approved before execution");
@@ -73,22 +74,24 @@ class ActionService implements IActionService {
 
         var executedAt = request.executedAt() == null ? Instant.now() : request.executedAt();
         var auditEntry = new AuditLogEntry(
-                UUID.randomUUID().toString(),
-                draft.evidenceId(),
-                draft.actionType().name(),
-                executedAt,
-                "APPROVED",
-                request.approvedContentReference());
+            UUID.randomUUID().toString(),
+            request.ownerId(),
+            draft.followUpItemId(),
+            draft.actionType().name(),
+            executedAt,
+            "APPROVED",
+            request.approvedContentReference());
         auditEntries.add(auditEntry);
         return new ExecuteApprovedActionResponse(auditEntry);
     }
 
     @Override
-    public synchronized List<AuditLogEntry> auditLog() {
-        return List.copyOf(auditEntries);
+    public synchronized List<AuditLogEntry> auditLog(String ownerId) {
+        validateOwnerId(ownerId);
+        return auditEntries.stream().filter(entry -> entry.ownerId().equals(ownerId)).toList();
     }
 
-    private ActionDraft draftFor(String draftId) {
+    private ActionDraft draftFor(String ownerId, String draftId) {
         if (draftId == null || draftId.isBlank()) {
             throw new IllegalArgumentException("draftId must not be blank");
         }
@@ -96,19 +99,29 @@ class ActionService implements IActionService {
         if (draft == null) {
             throw new IllegalArgumentException("draft not found: " + draftId);
         }
+        if (!draft.ownerId().equals(ownerId)) {
+            throw new IllegalArgumentException("draft does not belong to owner");
+        }
         return draft;
     }
 
     private void validateDraftRequest(CreateActionDraftRequest request) {
+        validateOwnerId(request.ownerId());
         Objects.requireNonNull(request.actionType(), "actionType must not be null");
-        if (request.evidenceId() == null || request.evidenceId().isBlank()) {
-            throw new IllegalArgumentException("evidenceId must not be blank");
+        if (request.followUpItemId() == null || request.followUpItemId().isBlank()) {
+            throw new IllegalArgumentException("followUpItemId must not be blank");
         }
         if (request.actionType() == ActionType.MEETING_INVITATION
-                && request.selectedStartsAt() != null
-                && request.selectedEndsAt() != null
-                && request.selectedEndsAt().isBefore(request.selectedStartsAt())) {
+            && request.selectedStartsAt() != null
+            && request.selectedEndsAt() != null
+            && request.selectedEndsAt().isBefore(request.selectedStartsAt())) {
             throw new IllegalArgumentException("selectedEndsAt must not be before selectedStartsAt");
+        }
+    }
+
+    private void validateOwnerId(String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            throw new IllegalArgumentException("ownerId must not be blank");
         }
     }
 

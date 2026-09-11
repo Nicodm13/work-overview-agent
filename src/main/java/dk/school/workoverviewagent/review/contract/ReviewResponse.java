@@ -4,11 +4,11 @@ import java.time.Instant;
 import java.util.List;
 
 public record ReviewResponse(
-        String reviewId,
-        ReviewRequest request,
-        Instant reviewedAt,
-        List<OverviewItem> items,
-        List<String> limitations) {
+    String reviewId,
+    ReviewRequest request,
+    Instant reviewedAt,
+    List<OverviewItem> items,
+    List<String> limitations) {
 
     public ReviewResponse {
         items = items == null ? List.of() : List.copyOf(items);

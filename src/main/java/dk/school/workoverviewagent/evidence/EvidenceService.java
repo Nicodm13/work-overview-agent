@@ -8,56 +8,70 @@ import dk.school.workoverviewagent.model.EvidenceStatus;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.contract.SourceData;
 import dk.school.workoverviewagent.source.contract.SourceItem;
+import org.springframework.stereotype.Component;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.stereotype.Component;
 
 @Component
 class EvidenceService implements IEvidenceService {
 
-    private final Map<String, EvidenceItem> latestEvidenceById = new LinkedHashMap<>();
+    private final Map<String, EvidenceItem> latestEvidenceByOwnerAndId = new LinkedHashMap<>();
 
     @Override
     public synchronized List<EvidenceItem> captureEvidence(ReviewRequest request, SourceData sourceData) {
+        validateOwnerId(request.ownerId());
         if (sourceData == null) {
             return List.of();
         }
 
         var evidenceItems = sourceData.items().stream()
-                .map(this::toEvidenceItem)
-                .toList();
-        latestEvidenceById.clear();
-        evidenceItems.forEach(evidence -> latestEvidenceById.put(evidence.id(), evidence));
+            .map(this::toEvidenceItem)
+            .toList();
+        latestEvidenceByOwnerAndId.entrySet().removeIf(entry -> entry.getKey().startsWith(request.ownerId() + ':'));
+        evidenceItems.forEach(evidence -> latestEvidenceByOwnerAndId.put(key(request.ownerId(), evidence.id()), evidence));
         return evidenceItems;
     }
 
     @Override
-    public synchronized EvidenceResponse getEvidence(String evidenceId) {
-        var evidence = latestEvidenceById.get(evidenceId);
+    public synchronized EvidenceResponse getEvidence(String ownerId, String evidenceId) {
+        validateOwnerId(ownerId);
+        var evidence = latestEvidenceByOwnerAndId.get(key(ownerId, evidenceId));
         return new EvidenceResponse(
-                evidenceId,
-                evidence == null ? List.of() : evidence.references());
+            ownerId,
+            evidenceId,
+            evidence == null ? List.of() : evidence.references());
+    }
+
+    private String key(String ownerId, String evidenceId) {
+        return ownerId + ':' + evidenceId;
+    }
+
+    private void validateOwnerId(String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            throw new IllegalArgumentException("ownerId must not be blank");
+        }
     }
 
     private EvidenceItem toEvidenceItem(SourceItem sourceItem) {
         return new EvidenceItem(
-                "evidence-" + sourceItem.id(),
-                sourceItem.title(),
-                evidenceSummary(sourceItem),
-                EvidenceStatus.SOURCE_EVIDENCE_CAPTURED,
-                List.of(reference(sourceItem)));
+            "evidence-" + sourceItem.id(),
+            sourceItem.title(),
+            evidenceSummary(sourceItem),
+            EvidenceStatus.SOURCE_EVIDENCE_CAPTURED,
+            List.of(reference(sourceItem)));
     }
 
     private EvidenceReference reference(SourceItem sourceItem) {
         return new EvidenceReference(
-                sourceItem.sourceType(),
-                sourceItem.id(),
-                sourceItem.occurredAt(),
-                sourceItem.senderOrOrganizer(),
-                sourceItem.title(),
-                excerpt(sourceItem.content()),
-                1.0);
+            sourceItem.sourceType(),
+            sourceItem.id(),
+            sourceItem.occurredAt(),
+            sourceItem.senderOrOrganizer(),
+            sourceItem.title(),
+            excerpt(sourceItem.content()),
+            1.0);
     }
 
     private String evidenceSummary(SourceItem sourceItem) {

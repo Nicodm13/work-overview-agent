@@ -1,15 +1,16 @@
-package dk.school.workoverviewagent.model;
+package dk.school.workoverviewagent.followup.contract;
+
+import dk.school.workoverviewagent.model.EvidenceReference;
 
 import java.util.List;
 
-public record FollowUpItem(
-    String id,
+public record CreateFollowUpItemRequest(
     String ownerId,
     String title,
     String summary,
     List<EvidenceReference> evidenceReferences) {
 
-    public FollowUpItem {
+    public CreateFollowUpItemRequest {
         evidenceReferences = evidenceReferences == null ? List.of() : List.copyOf(evidenceReferences);
     }
 }
