@@ -17,5 +17,5 @@ public interface IActionService {
 
     ExecuteApprovedActionResponse executeApprovedAction(ExecuteApprovedActionRequest request);
 
-    List<AuditLogEntry> auditLog();
+    List<AuditLogEntry> auditLog(String ownerId);
 }
