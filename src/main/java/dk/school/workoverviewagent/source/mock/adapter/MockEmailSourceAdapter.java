@@ -6,10 +6,10 @@ import dk.school.workoverviewagent.source.contract.SourceItem;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
 import dk.school.workoverviewagent.source.contract.SourceResult;
 import dk.school.workoverviewagent.source.filter.SourceItemFilter;
-import java.util.List;
-
 import dk.school.workoverviewagent.source.mock.MockSourceDataLoader;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 class MockEmailSourceAdapter implements ISourceAdapter {

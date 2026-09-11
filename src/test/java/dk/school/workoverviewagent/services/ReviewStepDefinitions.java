@@ -1,17 +1,20 @@
 package dk.school.workoverviewagent.services;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import dk.school.workoverviewagent.review.api.IReviewService;
 import dk.school.workoverviewagent.review.contract.ReviewPurpose;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
-import java.time.Instant;
-import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.Instant;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
 public class ReviewStepDefinitions {
-    @Autowired private IReviewService reviewService;
+    @Autowired
+    private IReviewService reviewService;
     private dk.school.workoverviewagent.review.contract.ReviewResponse review;
 
     @When("the review service reviews {string} to {string}")

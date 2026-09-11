@@ -4,6 +4,7 @@ import dk.school.workoverviewagent.evidence.contract.EvidenceResponse;
 import dk.school.workoverviewagent.model.EvidenceItem;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.contract.SourceData;
+
 import java.util.List;
 
 public interface IEvidenceService {

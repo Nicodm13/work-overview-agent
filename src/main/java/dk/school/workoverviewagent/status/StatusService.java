@@ -1,22 +1,18 @@
 package dk.school.workoverviewagent.status;
 
+import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.model.StatusSource;
 import dk.school.workoverviewagent.model.WorkStatus;
 import dk.school.workoverviewagent.model.WorkStatusRecord;
-import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.status.api.IStatusService;
 import dk.school.workoverviewagent.status.contract.GetWorkStatusRequest;
 import dk.school.workoverviewagent.status.contract.GetWorkStatusResponse;
 import dk.school.workoverviewagent.status.contract.UpdateWorkStatusRequest;
 import dk.school.workoverviewagent.status.contract.UpdateWorkStatusResponse;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
 import org.springframework.stereotype.Component;
+
+import java.time.Instant;
+import java.util.*;
 
 @Component
 class StatusService implements IStatusService {
@@ -38,24 +34,24 @@ class StatusService implements IStatusService {
         var history = historyFor(request.ownerId(), request.followUpItemId());
         if (history.isEmpty()) {
             return new GetWorkStatusResponse(
-                    request.ownerId(),
-                    request.followUpItemId(),
-                    WorkStatus.UNVERIFIED,
-                    StatusSource.DIGITAL_EVIDENCE,
-                    "No user-confirmed status recorded.",
-                    null,
-                    List.of());
+                request.ownerId(),
+                request.followUpItemId(),
+                WorkStatus.UNVERIFIED,
+                StatusSource.DIGITAL_EVIDENCE,
+                "No user-confirmed status recorded.",
+                null,
+                List.of());
         }
 
         var current = history.getLast();
         return new GetWorkStatusResponse(
-                request.ownerId(),
-                request.followUpItemId(),
-                current.status(),
-                current.statusSource(),
-                current.reason(),
-                current.updatedAt(),
-                history);
+            request.ownerId(),
+            request.followUpItemId(),
+            current.status(),
+            current.statusSource(),
+            current.reason(),
+            current.updatedAt(),
+            history);
     }
 
     @Override
@@ -69,24 +65,24 @@ class StatusService implements IStatusService {
 
         var updatedAt = request.updatedAt() == null ? Instant.now() : request.updatedAt();
         var record = new WorkStatusRecord(
-                UUID.randomUUID().toString(),
-                request.ownerId(),
-                request.followUpItemId(),
-                request.workStatus(),
-                request.reason() == null ? "" : request.reason(),
-                request.statusSource(),
-                updatedAt);
+            UUID.randomUUID().toString(),
+            request.ownerId(),
+            request.followUpItemId(),
+            request.workStatus(),
+            request.reason() == null ? "" : request.reason(),
+            request.statusSource(),
+            updatedAt);
 
         historyByOwnerAndFollowUpItemId.computeIfAbsent(key(request.ownerId(), request.followUpItemId()), ignored -> new ArrayList<>()).add(record);
         var history = historyFor(request.ownerId(), request.followUpItemId());
         return new UpdateWorkStatusResponse(
-                request.ownerId(),
-                request.followUpItemId(),
-                record.status(),
-                record.statusSource(),
-                record.reason(),
-                record.updatedAt(),
-                history);
+            request.ownerId(),
+            request.followUpItemId(),
+            record.status(),
+            record.statusSource(),
+            record.reason(),
+            record.updatedAt(),
+            history);
     }
 
     private List<WorkStatusRecord> historyFor(String ownerId, String followUpItemId) {
