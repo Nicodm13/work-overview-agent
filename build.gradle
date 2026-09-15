@@ -1,3 +1,5 @@
+import org.gradle.process.ExecOperations
+
 plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.1'
@@ -17,6 +19,10 @@ dependencies {
     implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.1')
     implementation platform('org.springframework.ai:spring-ai-bom:2.0.1')
     implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    runtimeOnly 'org.postgresql:postgresql'
 
     testImplementation platform('org.springframework.boot:spring-boot-dependencies:4.1.1')
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -24,8 +30,51 @@ dependencies {
     testImplementation 'io.cucumber:cucumber-spring:7.18.1'
     testImplementation 'io.cucumber:cucumber-junit-platform-engine:7.18.1'
     testImplementation 'org.junit.platform:junit-platform-suite'
+    testImplementation 'org.testcontainers:junit-jupiter:1.20.6'
+    testImplementation 'org.testcontainers:postgresql:1.20.6'
 }
 
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
+}
+
+tasks.register('dockerStartDatabase', Exec) {
+    group = 'docker'
+    description = 'Starts PostgreSQL and applies Flyway migrations.'
+    commandLine 'docker', 'compose', '-f', 'compose.yaml', 'up', '--detach', 'postgres'
+}
+
+def execOperations = services.get(ExecOperations)
+
+tasks.register('dockerMigrateDatabase', Exec) {
+    group = 'docker'
+    description = 'Applies the Flyway migrations to the local PostgreSQL database.'
+    commandLine 'docker', 'compose', '-f', 'compose.yaml', 'run', '--rm', '--build', 'flyway'
+}
+
+tasks.named('dockerStartDatabase') {
+    finalizedBy tasks.named('dockerMigrateDatabase')
+}
+
+tasks.register('dockerResetDatabase') {
+    group = 'docker'
+    description = 'Deletes local database data, starts PostgreSQL, and applies Flyway migrations.'
+
+    doLast {
+        execOperations.exec {
+            commandLine 'docker', 'compose', '-f', 'compose.yaml', 'down', '--volumes'
+        }
+        execOperations.exec {
+            commandLine 'docker', 'compose', '-f', 'compose.yaml', 'up', '--detach', 'postgres'
+        }
+        execOperations.exec {
+            commandLine 'docker', 'compose', '-f', 'compose.yaml', 'run', '--rm', '--build', 'flyway'
+        }
+    }
+}
+
+tasks.register('dockerDeleteDatabase', Exec) {
+    group = 'docker'
+    description = 'Stops the local PostgreSQL database container and deletes its data volume.'
+    commandLine 'docker', 'compose', '-f', 'compose.yaml', 'down', '--volumes'
 }

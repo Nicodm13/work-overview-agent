@@ -26,7 +26,11 @@ public class StatusStepDefinitions {
 
     @Given("no user-confirmed status exists for follow-up item {string}")
     public void noUserStatus(String title) {
-        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest("user-1", title, "", java.util.List.of()));
+        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            "user-1",
+            title,
+            "",
+            java.util.List.of()));
         var response = statusService.getWorkStatus(new GetWorkStatusRequest("user-1", item.id()));
         currentStatus = response.workStatus();
         currentSource = response.statusSource();
@@ -34,8 +38,18 @@ public class StatusStepDefinitions {
 
     @When("the user marks follow-up item {string} as {string} with reason {string}")
     public void userMarksStatus(String title, String status, String reason) {
-        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest("user-1", title, "", java.util.List.of()));
-        var response = statusService.updateWorkStatus(new UpdateWorkStatusRequest("user-1", item.id(), WorkStatus.valueOf(status), reason, StatusSource.USER_CONFIRMED, Instant.parse("2026-09-05T08:30:00Z")));
+        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            "user-1",
+            title,
+            "",
+            java.util.List.of()));
+        var response = statusService.updateWorkStatus(new UpdateWorkStatusRequest(
+            "user-1",
+            item.id(),
+            WorkStatus.valueOf(status),
+            reason,
+            StatusSource.USER_CONFIRMED,
+            Instant.parse("2026-09-05T08:30:00Z")));
         currentStatus = response.workStatus();
         currentSource = response.statusSource();
     }

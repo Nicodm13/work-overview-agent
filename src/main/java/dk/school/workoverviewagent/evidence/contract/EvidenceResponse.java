@@ -6,7 +6,7 @@ import java.util.List;
 
 public record EvidenceResponse(
     String ownerId,
-    String evidenceId,
+    String evidenceReferenceId,
     List<EvidenceReference> references) {
 
     public EvidenceResponse {

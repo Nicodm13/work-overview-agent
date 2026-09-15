@@ -20,7 +20,11 @@ public class SourceStepDefinitions {
 
     @Given("the prototype source interval is from {string} to {string}")
     public void sourceInterval(String startsAt, String endsAt) {
-        sourceData = sourceAdapterLayer.loadSources(new SourceRequest("user-1", Instant.parse(startsAt), Instant.parse(endsAt), List.of()));
+        sourceData = sourceAdapterLayer.loadSources(new SourceRequest(
+            "user-1",
+            Instant.parse(startsAt),
+            Instant.parse(endsAt),
+            List.of()));
     }
 
     @Then("the loaded source ids are {string}")

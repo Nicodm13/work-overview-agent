@@ -1,0 +1,3 @@
+FROM flyway/flyway:12.4.0-alpine
+
+COPY src/main/resources/db/migration /flyway/sql
