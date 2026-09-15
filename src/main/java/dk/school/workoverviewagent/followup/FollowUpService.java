@@ -6,14 +6,11 @@ import dk.school.workoverviewagent.followup.contract.CreateFollowUpItemRequest;
 import dk.school.workoverviewagent.followup.repository.IFollowUpRepository;
 import dk.school.workoverviewagent.evidence.repository.IEvidenceRepository;
 import dk.school.workoverviewagent.model.FollowUpItem;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
-
-import java.util.*;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Stores explicitly requested follow-up items and their evidence links. This service does not
@@ -33,6 +30,7 @@ class FollowUpService implements IFollowUpService {
     }
 
     @Override
+    @Transactional
     public FollowUpItem createFollowUpItem(CreateFollowUpItemRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateTitle(request.title());
@@ -60,6 +58,7 @@ class FollowUpService implements IFollowUpService {
     }
 
     @Override
+    @Transactional
     public FollowUpItem attachEvidence(AttachEvidenceToFollowUpRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(request.evidenceReference(), "evidenceReference must not be null");

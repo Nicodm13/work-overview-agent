@@ -3,7 +3,6 @@ package dk.school.workoverviewagent.action;
 import dk.school.workoverviewagent.action.api.IActionService;
 import dk.school.workoverviewagent.action.contract.*;
 import dk.school.workoverviewagent.action.repository.IActionRepository;
-import dk.school.workoverviewagent.action.contract.*;
 import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.model.ActionDraft;
 import dk.school.workoverviewagent.model.ActionState;
@@ -17,9 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
-
-import java.time.Instant;
-import java.util.*;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 class ActionService implements IActionService {
@@ -35,6 +32,7 @@ class ActionService implements IActionService {
     }
 
     @Override
+    @Transactional
     public CreateActionDraftResponse createDraft(CreateActionDraftRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateDraftRequest(request);
@@ -54,7 +52,7 @@ class ActionService implements IActionService {
             request.agenda(),
             request.editableContext());
         actionRepository.saveDraft(draft.ownerId(), draft);
-        actionRepository.saveActionState(new ActionState(
+        actionRepository.createActionState(new ActionState(
             draft.ownerId(),
             draft.id(),
             ActionStatus.DRAFT,
@@ -64,37 +62,41 @@ class ActionService implements IActionService {
     }
 
     @Override
+    @Transactional
     public ApproveActionResponse approveDraft(ApproveActionRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateOwnerId(request.ownerId());
         var draft = draftFor(request.ownerId(), request.draftId());
         requireFinalApproval(request.finalApproval(), request.approvedContentReference());
         var approvedAt = request.approvedAt() == null ? Instant.now() : request.approvedAt();
-        actionRepository.saveActionState(new ActionState(
+        var approved = actionRepository.approveDraft(new ActionState(
             request.ownerId(),
             draft.id(),
             ActionStatus.APPROVED,
             request.approvedContentReference(),
             approvedAt));
+        if (!approved) {
+            throw new IllegalStateException("draft can only be approved once");
+        }
         return new ApproveActionResponse(draft, true, approvedAt);
     }
 
     @Override
+    @Transactional
     public ExecuteApprovedActionResponse executeApprovedAction(ExecuteApprovedActionRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateOwnerId(request.ownerId());
         var draft = draftFor(request.ownerId(), request.draftId());
         requireFinalApproval(request.finalApproval(), request.approvedContentReference());
-        var state = actionRepository.findActionState(request.ownerId(), draft.id())
-            .orElseThrow(() -> new IllegalStateException("draft must be approved before execution"));
-        if (state.status() != ActionStatus.APPROVED) {
-            throw new IllegalStateException("draft must be approved before execution");
-        }
-        if (!request.approvedContentReference().equals(state.approvedContentReference())) {
-            throw new IllegalArgumentException("approved content does not match the approved draft");
-        }
-
         var executedAt = request.executedAt() == null ? Instant.now() : request.executedAt();
+        var executed = actionRepository.transitionApprovedDraftToExecuted(
+            request.ownerId(),
+            draft.id(),
+            request.approvedContentReference(),
+            executedAt);
+        if (!executed) {
+            throw new IllegalStateException("draft must be approved with the supplied content before execution");
+        }
         var auditEntry = new AuditLogEntry(
             UUID.randomUUID().toString(),
             request.ownerId(),
@@ -104,12 +106,6 @@ class ActionService implements IActionService {
             "APPROVED",
             request.approvedContentReference());
         actionRepository.appendAuditEntry(request.ownerId(), auditEntry);
-        actionRepository.saveActionState(new ActionState(
-            request.ownerId(),
-            draft.id(),
-            ActionStatus.EXECUTED,
-            request.approvedContentReference(),
-            executedAt));
         return new ExecuteApprovedActionResponse(auditEntry);
     }
 

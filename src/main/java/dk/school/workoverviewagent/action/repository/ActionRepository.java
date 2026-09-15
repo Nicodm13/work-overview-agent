@@ -72,16 +72,12 @@ class ActionRepository implements IActionRepository {
     }
 
     @Override
-    public void saveActionState(ActionState state) {
+    public void createActionState(ActionState state) {
         jdbc.update(
             """
                 INSERT INTO ACTION_STATE
                     (OWNER_ID, DRAFT_ID, STATUS, APPROVED_CONTENT_REFERENCE, UPDATED_AT)
                 VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT (OWNER_ID, DRAFT_ID)
-                DO UPDATE SET STATUS = EXCLUDED.STATUS,
-                              APPROVED_CONTENT_REFERENCE = EXCLUDED.APPROVED_CONTENT_REFERENCE,
-                              UPDATED_AT = EXCLUDED.UPDATED_AT
                 """,
             state.ownerId(),
             state.draftId(),
@@ -108,6 +104,50 @@ class ActionRepository implements IActionRepository {
                 draftId)
             .stream()
             .findFirst();
+    }
+
+    @Override
+    public boolean approveDraft(ActionState state) {
+        return jdbc.update(
+            """
+                UPDATE ACTION_STATE
+                SET STATUS = ?,
+                    APPROVED_CONTENT_REFERENCE = ?,
+                    UPDATED_AT = ?
+                WHERE OWNER_ID = ?
+                  AND DRAFT_ID = ?
+                  AND STATUS = ?
+                """,
+            ActionStatus.APPROVED.name(),
+            state.approvedContentReference(),
+            Timestamp.from(state.updatedAt()),
+            state.ownerId(),
+            state.draftId(),
+            ActionStatus.DRAFT.name()) == 1;
+    }
+
+    @Override
+    public boolean transitionApprovedDraftToExecuted(
+        String ownerId,
+        String draftId,
+        String approvedContentReference,
+        Instant executedAt) {
+        return jdbc.update(
+            """
+                UPDATE ACTION_STATE
+                SET STATUS = ?,
+                    UPDATED_AT = ?
+                WHERE OWNER_ID = ?
+                  AND DRAFT_ID = ?
+                  AND STATUS = ?
+                  AND APPROVED_CONTENT_REFERENCE = ?
+                """,
+            ActionStatus.EXECUTED.name(),
+            Timestamp.from(executedAt),
+            ownerId,
+            draftId,
+            ActionStatus.APPROVED.name(),
+            approvedContentReference) == 1;
     }
 
     @Override

@@ -4,6 +4,7 @@ import dk.school.workoverviewagent.model.ActionDraft;
 import dk.school.workoverviewagent.model.ActionState;
 import dk.school.workoverviewagent.model.AuditLogEntry;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,9 +16,17 @@ public interface IActionRepository {
 
     Optional<ActionDraft> findDraftById(String ownerId, String draftId);
 
-    void saveActionState(ActionState actionState);
+    void createActionState(ActionState actionState);
 
     Optional<ActionState> findActionState(String ownerId, String draftId);
+
+    boolean approveDraft(ActionState actionState);
+
+    boolean transitionApprovedDraftToExecuted(
+        String ownerId,
+        String draftId,
+        String approvedContentReference,
+        Instant executedAt);
 
     void appendAuditEntry(String ownerId, AuditLogEntry entry);
 
