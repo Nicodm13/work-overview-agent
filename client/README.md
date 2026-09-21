@@ -33,6 +33,6 @@ credentials. Authentication configuration will be added with the network deploym
 
 ## Package structure
 
-- `skills/` contains client skills.
-- `prompts/` contains reusable prompt material.
+- `AGENTS.md` contains the client-wide operating instructions.
+- `.agents/skills/` contains tool-specific Codex skills.
 - `config/` contains client connection configuration.
