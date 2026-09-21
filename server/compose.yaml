@@ -1,3 +1,5 @@
+name: work-overview-agent
+
 services:
   postgres:
     image: postgres:17-alpine

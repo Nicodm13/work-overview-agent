@@ -9,7 +9,7 @@
       </option>
       <option name="taskNames">
         <list>
-          <option value="dockerResetDatabase" />
+          <option value=":server:dockerResetDatabase" />
         </list>
       </option>
       <option name="vmOptions" />

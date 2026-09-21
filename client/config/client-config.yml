@@ -1,0 +1,2 @@
+work-overview:
+  mcp-server-url: ${WORK_OVERVIEW_MCP_URL:http://localhost:8080/mcp}

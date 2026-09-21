@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Docker - Start Database" type="GradleRunConfiguration" factoryName="Gradle">
+  <configuration default="false" name="Install MCP Client" type="GradleRunConfiguration" factoryName="Gradle">
     <ExternalSystemSettings>
       <option name="executionName" />
       <option name="externalProjectPath" value="$PROJECT_DIR$" />
@@ -9,7 +9,7 @@
       </option>
       <option name="taskNames">
         <list>
-          <option value=":server:dockerStartDatabase" />
+          <option value=":client:installMcpClient" />
         </list>
       </option>
       <option name="vmOptions" />
