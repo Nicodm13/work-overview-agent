@@ -44,7 +44,7 @@ the same database name, username, password, and port as the application's local 
 `start` and `reset` start PostgreSQL and build then run Flyway in a short-lived Docker container.
 The build copies the repository's migrations into the container, so new migrations are included.
 `reset` and `delete` remove only the named Docker volume created by this project's Compose file.
-The schema is therefore ready before `MCP Server` starts.
+The schema is therefore ready before `Start MCP Server` starts.
 
 ## IntelliJ IDEA run configurations
 
@@ -54,10 +54,12 @@ repository:
 - `Docker - Start Database`
 - `Docker - Reset Database`
 - `Docker - Delete Database`
-- `MCP Server`
+- `Start MCP Server`
+- `Run Tests`
 
-Run `Docker - Start Database` before `MCP Server`. The old generic `Application` run configuration
-is not shared; use `MCP Server` for the Spring Boot MCP server.
+Run `Docker - Start Database` before `Start MCP Server`. The old generic `Application` run
+configuration is not shared; use `Start MCP Server` for the Spring Boot MCP server. Use `Run Tests`
+to execute the full Gradle test suite from IntelliJ.
 
 ## Connect Codex as an MCP client
 

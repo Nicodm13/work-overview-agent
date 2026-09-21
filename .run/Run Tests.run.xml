@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="MCP Server" type="GradleRunConfiguration" factoryName="Gradle">
+  <configuration default="false" name="Run Tests" type="GradleRunConfiguration" factoryName="Gradle">
     <ExternalSystemSettings>
       <option name="executionName" />
       <option name="externalProjectPath" value="$PROJECT_DIR$" />
@@ -9,7 +9,7 @@
       </option>
       <option name="taskNames">
         <list>
-          <option value="bootRun" />
+          <option value="test" />
         </list>
       </option>
       <option name="vmOptions" />
