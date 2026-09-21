@@ -20,7 +20,7 @@ public class EvidenceToolStepDefinitions {
 
     @When("the evidence tool scenario requests a review from {string} to {string}")
     public void getReview(String startsAt, String endsAt) {
-        reviewResponse = reviewTools.getReview(startsAt, endsAt);
+        reviewResponse = reviewTools.getReview(startsAt, endsAt, null, null);
     }
 
     @When("the get_item_evidence MCP tool is called for the first review item")

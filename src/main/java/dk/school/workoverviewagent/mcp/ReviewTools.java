@@ -1,5 +1,6 @@
 package dk.school.workoverviewagent.mcp;
 
+import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.review.api.IReviewService;
 import dk.school.workoverviewagent.review.contract.ReviewPurpose;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
@@ -33,13 +34,21 @@ public class ReviewTools {
             idempotentHint = true))
     public ReviewResponse getReview(
         @McpToolParam(description = "Start of the interval as an ISO-8601 instant.", required = true) String startsAt,
-        @McpToolParam(description = "End of the interval as an ISO-8601 instant.", required = true) String endsAt) {
+        @McpToolParam(description = "End of the interval as an ISO-8601 instant.", required = true) String endsAt,
+        @McpToolParam(
+            description = "Optional source types to review. Omit or provide an empty list to review all sources.",
+            required = false)
+        List<SourceType> sourceTypes,
+        @McpToolParam(
+            description = "Optional review purpose. Defaults to DAILY_OVERVIEW when omitted.",
+            required = false)
+        ReviewPurpose reviewPurpose) {
         var request = new ReviewRequest(
             userProvider.getUserId(),
             Instant.parse(startsAt),
             Instant.parse(endsAt),
-            List.of(),
-            ReviewPurpose.DAILY_OVERVIEW);
+            sourceTypes == null ? List.of() : sourceTypes,
+            reviewPurpose == null ? ReviewPurpose.DAILY_OVERVIEW : reviewPurpose);
         return reviewService.reviewWorkContext(request);
     }
 }
