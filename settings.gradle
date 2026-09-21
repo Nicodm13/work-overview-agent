@@ -13,3 +13,6 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = 'work-overview-agent'
+
+include 'server'
+include 'client'

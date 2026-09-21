@@ -9,7 +9,7 @@
       </option>
       <option name="taskNames">
         <list>
-          <option value="dockerStartDatabase" />
+          <option value=":server:dockerStartDatabase" />
         </list>
       </option>
       <option name="vmOptions" />
