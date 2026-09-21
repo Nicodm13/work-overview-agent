@@ -25,14 +25,11 @@ on:
             - dev
         types:
             - submitted
-
-permissions:
-    contents: read
-    pull-requests: read
-    statuses: write
+    schedule:
+        - cron: '*/5 * * * *'
 
 concurrency:
-    group: pr-review-${{ github.event.pull_request.number }}
+    group: pr-review-${{ github.event.pull_request.number || github.workflow }}
     cancel-in-progress: false
 
 jobs:
@@ -40,6 +37,8 @@ jobs:
         name: build
         if: github.event_name == 'pull_request'
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
 
         steps:
             -   name: Checkout
@@ -64,33 +63,55 @@ jobs:
         name: require-codex-review
         if: github.event_name == 'pull_request_target'
         runs-on: ubuntu-latest
+        permissions:
+            issues: write
+            pull-requests: read
+            statuses: write
 
         steps:
-            -   name: Mark the pull request commit as awaiting Codex review
+            -   name: Reset previous Codex reactions and await review
                 uses: actions/github-script@v7
                 with:
                     github-token: ${{ github.token }}
                     script: |
                         const { owner, repo } = context.repo;
-                        const sha = context.payload.pull_request.head.sha;
+                        const issueNumber = context.payload.pull_request.number;
+                        const reactions = await github.paginate(
+                            github.rest.reactions.listForIssue,
+                            { owner, repo, issue_number: issueNumber, per_page: 100 },
+                        );
+
+                        for (const reaction of reactions) {
+                            if (reaction.content === '+1' && reaction.user?.login === 'chatgpt-codex-connector[bot]') {
+                                await github.rest.reactions.deleteForIssue({
+                                    owner,
+                                    repo,
+                                    issue_number: issueNumber,
+                                    reaction_id: reaction.id,
+                                });
+                            }
+                        }
 
                         await github.rest.repos.createCommitStatus({
                             owner,
                             repo,
-                            sha,
+                            sha: context.payload.pull_request.head.sha,
                             state: 'pending',
                             context: 'codex-review-completed',
                             description: 'Waiting for connected Codex Code Review.',
-                            target_url: `https://github.com/${owner}/${repo}/pull/${context.payload.pull_request.number}`,
+                            target_url: `https://github.com/${owner}/${repo}/pull/${issueNumber}`,
                         });
 
     confirm-codex-review:
         name: confirm-codex-review
         if: github.event_name == 'pull_request_review' && github.event.review.user.login == 'chatgpt-codex-connector[bot]'
         runs-on: ubuntu-latest
+        permissions:
+            pull-requests: read
+            statuses: write
 
         steps:
-            -   name: Mark the reviewed commit as complete
+            -   name: Mark a reviewed commit as complete
                 uses: actions/github-script@v7
                 with:
                     github-token: ${{ github.token }}
@@ -118,3 +139,53 @@ jobs:
                             description: 'Connected Codex Code Review completed for this commit.',
                             target_url: review.html_url,
                         });
+
+    poll-codex-review:
+        name: poll-codex-review
+        if: github.event_name == 'schedule'
+        runs-on: ubuntu-latest
+        permissions:
+            issues: read
+            pull-requests: read
+            statuses: write
+
+        steps:
+            -   name: Complete statuses for reviewed pull requests
+                uses: actions/github-script@v7
+                with:
+                    github-token: ${{ github.token }}
+                    script: |
+                        const { owner, repo } = context.repo;
+                        const pullRequests = await github.paginate(
+                            github.rest.pulls.list,
+                            { owner, repo, state: 'open', per_page: 100 },
+                        );
+
+                        for (const pullRequest of pullRequests.filter((pr) => ['main', 'dev'].includes(pr.base.ref))) {
+                            const reactions = await github.paginate(
+                                github.rest.reactions.listForIssue,
+                                { owner, repo, issue_number: pullRequest.number, per_page: 100 },
+                            );
+                            const hasCodexThumbsUp = reactions.some(
+                                (reaction) => reaction.content === '+1' && reaction.user?.login === 'chatgpt-codex-connector[bot]',
+                            );
+                            const reviews = await github.paginate(
+                                github.rest.pulls.listReviews,
+                                { owner, repo, pull_number: pullRequest.number, per_page: 100 },
+                            );
+                            const hasCurrentCodexReview = reviews.some(
+                                (review) => review.user?.login === 'chatgpt-codex-connector[bot]' && review.commit_id === pullRequest.head.sha,
+                            );
+
+                            if (hasCodexThumbsUp || hasCurrentCodexReview) {
+                                await github.rest.repos.createCommitStatus({
+                                    owner,
+                                    repo,
+                                    sha: pullRequest.head.sha,
+                                    state: 'success',
+                                    context: 'codex-review-completed',
+                                    description: 'Connected Codex Code Review completed for this commit.',
+                                    target_url: `https://github.com/${owner}/${repo}/pull/${pullRequest.number}`,
+                                });
+                            }
+                        }
