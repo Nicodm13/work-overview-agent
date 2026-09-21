@@ -15,6 +15,8 @@ public class McpToolStepDefinitions {
     private EvidenceTools evidenceTools;
     @Autowired
     private FollowUpTools followUpTools;
+    @Autowired
+    private StatusTools statusTools;
 
     private dk.school.workoverviewagent.review.contract.ReviewResponse response;
     private dk.school.workoverviewagent.evidence.contract.EvidenceResponse evidenceResponse;
@@ -22,6 +24,8 @@ public class McpToolStepDefinitions {
     private dk.school.workoverviewagent.model.FollowUpItem retrievedFollowUpItem;
     private dk.school.workoverviewagent.model.FollowUpItem followUpItemWithEvidence;
     private List<dk.school.workoverviewagent.model.FollowUpItem> followUpItems;
+    private dk.school.workoverviewagent.status.contract.UpdateWorkStatusResponse statusUpdateResponse;
+    private dk.school.workoverviewagent.status.contract.GetWorkStatusResponse statusResponse;
 
     @When("the get_review MCP tool is called from {string} to {string}")
     public void getReview(String startsAt, String endsAt) {
@@ -105,5 +109,34 @@ public class McpToolStepDefinitions {
     public void listContainsCreatedFollowUpItem() {
         assertThat(followUpItems).extracting(dk.school.workoverviewagent.model.FollowUpItem::id)
             .contains(createdFollowUpItem.id());
+    }
+
+    @When("the update_status MCP tool marks the created follow-up item as {string} with reason {string}")
+    public void updateStatus(String workStatus, String reason) {
+        statusUpdateResponse = statusTools.updateStatus(
+            createdFollowUpItem.id(),
+            dk.school.workoverviewagent.model.WorkStatus.valueOf(workStatus),
+            reason);
+    }
+
+    @Then("the status update is {string} from {string}")
+    public void statusUpdateIs(String workStatus, String statusSource) {
+        assertThat(statusUpdateResponse.workStatus())
+            .isEqualTo(dk.school.workoverviewagent.model.WorkStatus.valueOf(workStatus));
+        assertThat(statusUpdateResponse.statusSource())
+            .isEqualTo(dk.school.workoverviewagent.model.StatusSource.valueOf(statusSource));
+    }
+
+    @When("the get_status MCP tool is called for the created follow-up item")
+    public void getStatus() {
+        statusResponse = statusTools.getStatus(createdFollowUpItem.id());
+    }
+
+    @Then("the retrieved status is {string} from {string}")
+    public void retrievedStatusIs(String workStatus, String statusSource) {
+        assertThat(statusResponse.workStatus())
+            .isEqualTo(dk.school.workoverviewagent.model.WorkStatus.valueOf(workStatus));
+        assertThat(statusResponse.statusSource())
+            .isEqualTo(dk.school.workoverviewagent.model.StatusSource.valueOf(statusSource));
     }
 }

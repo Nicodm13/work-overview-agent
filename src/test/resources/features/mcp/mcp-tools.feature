@@ -20,3 +20,10 @@ Feature: Work overview MCP tools
     Then the follow-up item has 1 explicitly linked evidence reference
     When the list_follow_up_items MCP tool is called
     Then the list contains the created follow-up item
+
+  Scenario: Status tools expose user-confirmed status through MCP
+    When the create_follow_up_item MCP tool is called with title "Status tool test item"
+    And the update_status MCP tool marks the created follow-up item as "RESOLVED" with reason "Clarified verbally."
+    Then the status update is "RESOLVED" from "USER_CONFIRMED"
+    When the get_status MCP tool is called for the created follow-up item
+    Then the retrieved status is "RESOLVED" from "USER_CONFIRMED"
