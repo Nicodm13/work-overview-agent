@@ -5,8 +5,10 @@ import dk.school.workoverviewagent.action.contract.ApproveActionRequest;
 import dk.school.workoverviewagent.action.contract.ApproveActionResponse;
 import dk.school.workoverviewagent.action.contract.CreateActionDraftRequest;
 import dk.school.workoverviewagent.action.contract.CreateActionDraftResponse;
+import dk.school.workoverviewagent.action.contract.DeleteActionDraftResponse;
 import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionRequest;
 import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionResponse;
+import dk.school.workoverviewagent.model.ActionDraft;
 import dk.school.workoverviewagent.model.ActionType;
 import dk.school.workoverviewagent.user.IUserProvider;
 import org.springframework.ai.mcp.annotation.McpTool;
@@ -30,7 +32,6 @@ public class ActionTools {
     @McpTool(
         name = "draft_follow_up_action",
         description = "Prepare an editable action draft for a follow-up item. Preparing a draft does not send an external action.",
-        generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
             destructiveHint = false,
@@ -73,7 +74,6 @@ public class ActionTools {
     @McpTool(
         name = "approve_action_draft",
         description = "Record final user approval for the exact editable draft content before execution.",
-        generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
             destructiveHint = false,
@@ -91,6 +91,46 @@ public class ActionTools {
             finalApproval,
             approvedContentReference,
             null));
+    }
+
+    @McpTool(
+        name = "get_action_draft",
+        description = "Return one stored action draft so the client can display its exact editable content.",
+        annotations = @McpTool.McpAnnotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true))
+    public ActionDraft getActionDraft(
+        @McpToolParam(description = "ID of the action draft to retrieve.", required = true)
+        String draftId) {
+        return actionService.getActionDraft(userProvider.getUserId(), draftId);
+    }
+
+    @McpTool(
+        name = "list_action_drafts",
+        description = "List active action drafts. Executed drafts remain available through audit storage but are excluded.",
+        annotations = @McpTool.McpAnnotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true))
+    public List<ActionDraft> listActionDrafts() {
+        return actionService.listActiveActionDrafts(userProvider.getUserId());
+    }
+
+    @McpTool(
+        name = "delete_action_draft",
+        description = "Delete an unapproved draft. Approved or executed drafts cannot be deleted because they support "
+            + "auditability.",
+        generateOutputSchema = true,
+        annotations = @McpTool.McpAnnotations(
+            readOnlyHint = false,
+            destructiveHint = true,
+            idempotentHint = false))
+    public DeleteActionDraftResponse deleteActionDraft(
+        @McpToolParam(description = "ID of the unapproved action draft to delete.", required = true)
+        String draftId) {
+        actionService.deleteDraft(userProvider.getUserId(), draftId);
+        return new DeleteActionDraftResponse(draftId, true);
     }
 
     @McpTool(

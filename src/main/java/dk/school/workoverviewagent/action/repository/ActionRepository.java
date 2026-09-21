@@ -107,6 +107,35 @@ class ActionRepository implements IActionRepository {
     }
 
     @Override
+    public List<ActionDraft> findActiveDrafts(String ownerId) {
+        return jdbc.query(
+            """
+                SELECT DRAFT.ID, DRAFT.OWNER_ID, DRAFT.FOLLOW_UP_ITEM_ID, DRAFT.ACTION_TYPE, DRAFT.RECIPIENTS,
+                       DRAFT.SUBJECT, DRAFT.BODY, DRAFT.MEETING_TITLE, DRAFT.SELECTED_STARTS_AT,
+                       DRAFT.SELECTED_ENDS_AT, DRAFT.AGENDA, DRAFT.EDITABLE_CONTEXT
+                FROM ACTION_DRAFT DRAFT
+                JOIN ACTION_STATE STATE ON STATE.OWNER_ID = DRAFT.OWNER_ID AND STATE.DRAFT_ID = DRAFT.ID
+                WHERE DRAFT.OWNER_ID = ?
+                  AND STATE.STATUS IN ('DRAFT', 'APPROVED')
+                ORDER BY STATE.UPDATED_AT, DRAFT.ID
+                """,
+            (resultSet, rowNumber) -> draft(resultSet),
+            ownerId);
+    }
+
+    @Override
+    public boolean deleteDraft(String ownerId, String draftId) {
+        jdbc.update(
+            "DELETE FROM ACTION_STATE WHERE OWNER_ID = ? AND DRAFT_ID = ?",
+            ownerId,
+            draftId);
+        return jdbc.update(
+            "DELETE FROM ACTION_DRAFT WHERE OWNER_ID = ? AND ID = ?",
+            ownerId,
+            draftId) == 1;
+    }
+
+    @Override
     public boolean approveDraft(ActionState state) {
         return jdbc.update(
             """

@@ -16,6 +16,10 @@ public interface IActionRepository {
 
     Optional<ActionDraft> findDraftById(String ownerId, String draftId);
 
+    List<ActionDraft> findActiveDrafts(String ownerId);
+
+    boolean deleteDraft(String ownerId, String draftId);
+
     void createActionState(ActionState actionState);
 
     Optional<ActionState> findActionState(String ownerId, String draftId);

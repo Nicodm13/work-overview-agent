@@ -110,6 +110,32 @@ class ActionService implements IActionService {
     }
 
     @Override
+    public ActionDraft getActionDraft(String ownerId, String draftId) {
+        validateOwnerId(ownerId);
+        return draftFor(ownerId, draftId);
+    }
+
+    @Override
+    public List<ActionDraft> listActiveActionDrafts(String ownerId) {
+        validateOwnerId(ownerId);
+        return actionRepository.findActiveDrafts(ownerId);
+    }
+
+    @Override
+    @Transactional
+    public void deleteDraft(String ownerId, String draftId) {
+        validateOwnerId(ownerId);
+        var state = actionRepository.findActionState(ownerId, draftId)
+            .orElseThrow(() -> new IllegalArgumentException("draft not found: " + draftId));
+        if (state.status() != ActionStatus.DRAFT) {
+            throw new IllegalStateException("only unapproved drafts can be deleted");
+        }
+        if (!actionRepository.deleteDraft(ownerId, draftId)) {
+            throw new IllegalArgumentException("draft not found: " + draftId);
+        }
+    }
+
+    @Override
     public List<AuditLogEntry> auditLog(String ownerId) {
         validateOwnerId(ownerId);
         return actionRepository.findAuditEntries(ownerId);
