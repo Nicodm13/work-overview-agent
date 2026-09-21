@@ -38,10 +38,12 @@ tasks.withType(Test).configureEach {
     useJUnitPlatform()
 }
 
+def composeFile = layout.projectDirectory.file('compose.yaml').asFile.absolutePath
+
 tasks.register('dockerStartDatabase', Exec) {
     group = 'docker'
     description = 'Starts PostgreSQL and applies Flyway migrations.'
-    commandLine 'docker', 'compose', '-f', 'compose.yaml', 'up', '--detach', 'postgres'
+    commandLine 'docker', 'compose', '-f', composeFile, 'up', '--detach', 'postgres'
 }
 
 def execOperations = services.get(ExecOperations)
@@ -49,7 +51,7 @@ def execOperations = services.get(ExecOperations)
 tasks.register('dockerMigrateDatabase', Exec) {
     group = 'docker'
     description = 'Applies the Flyway migrations to the local PostgreSQL database.'
-    commandLine 'docker', 'compose', '-f', 'compose.yaml', 'run', '--rm', '--build', 'flyway'
+    commandLine 'docker', 'compose', '-f', composeFile, 'run', '--rm', '--build', 'flyway'
 }
 
 tasks.named('dockerStartDatabase') {
@@ -62,13 +64,13 @@ tasks.register('dockerResetDatabase') {
 
     doLast {
         execOperations.exec {
-            commandLine 'docker', 'compose', '-f', 'compose.yaml', 'down', '--volumes'
+            commandLine 'docker', 'compose', '-f', composeFile, 'down', '--volumes'
         }
         execOperations.exec {
-            commandLine 'docker', 'compose', '-f', 'compose.yaml', 'up', '--detach', 'postgres'
+            commandLine 'docker', 'compose', '-f', composeFile, 'up', '--detach', 'postgres'
         }
         execOperations.exec {
-            commandLine 'docker', 'compose', '-f', 'compose.yaml', 'run', '--rm', '--build', 'flyway'
+            commandLine 'docker', 'compose', '-f', composeFile, 'run', '--rm', '--build', 'flyway'
         }
     }
 }
@@ -76,5 +78,5 @@ tasks.register('dockerResetDatabase') {
 tasks.register('dockerDeleteDatabase', Exec) {
     group = 'docker'
     description = 'Stops the local PostgreSQL database container and deletes its data volume.'
-    commandLine 'docker', 'compose', '-f', 'compose.yaml', 'down', '--volumes'
+    commandLine 'docker', 'compose', '-f', composeFile, 'down', '--volumes'
 }

@@ -3,3 +3,10 @@ plugins {
 }
 
 description = 'Installable AI client package for the Work Overview MCP server'
+
+tasks.register('installMcpClient', Exec) {
+    group = 'installation'
+    description = 'Registers the configured Work Overview MCP server in Codex.'
+    workingDir projectDir
+    commandLine 'powershell.exe', '-ExecutionPolicy', 'Bypass', '-File', 'install.ps1'
+}

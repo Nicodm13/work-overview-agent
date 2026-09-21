@@ -4,21 +4,32 @@ This package is the installable agent layer for the Work Overview MCP server. It
 client configuration and future agent extensions; the server remains a separately installed Spring
 Boot application.
 
-## Configure the server endpoint
+## Install in Codex
 
-Copy `config/client-config.yml` into the installed client configuration directory and set
-`WORK_OVERVIEW_MCP_URL` to the server's full Streamable HTTP endpoint.
+Run the installer from this directory. It registers the server in Codex using `codex mcp add`.
+Codex CLI, the Codex IDE extension, and the ChatGPT desktop app share MCP configuration on the
+same host.
+
+In IntelliJ, run the shared `Install MCP Client` configuration to use the default local endpoint.
 
 ```powershell
-# Local server
-$env:WORK_OVERVIEW_MCP_URL = 'http://localhost:8080/mcp'
+# Local server (the default)
+.\install.ps1
 
-# Network deployment
+# Network server
 $env:WORK_OVERVIEW_MCP_URL = 'https://work-overview.example.internal/mcp'
+.\install.ps1
 ```
 
-The package does not contain credentials. Authentication configuration will be added with the
-network deployment work.
+Pass `-ServerUrl` to override the environment variable for one installation, or use `-DryRun` to
+show the exact Codex command without changing the local configuration:
+
+```powershell
+.\install.ps1 -ServerUrl http://localhost:8080/mcp -DryRun
+```
+
+The installed endpoint can be inspected with `codex mcp list`. The package does not contain
+credentials. Authentication configuration will be added with the network deployment work.
 
 ## Package structure
 
