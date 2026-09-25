@@ -27,5 +27,12 @@ work-overview:
         audience: ${WORK_OVERVIEW_ENTRA_AUDIENCE:}
         tenant-id: ${WORK_OVERVIEW_ENTRA_TENANT_ID:}
 
+    graph:
+        authentication:
+            client-id: ${WORK_OVERVIEW_ENTRA_CLIENT_ID:}
+            client-secret: ${WORK_OVERVIEW_ENTRA_CLIENT_SECRET:}
+            certificate-path: ${WORK_OVERVIEW_ENTRA_CERTIFICATE_PATH:}
+            certificate-password: ${WORK_OVERVIEW_ENTRA_CERTIFICATE_PASSWORD:}
+
 server:
     port: 8080
