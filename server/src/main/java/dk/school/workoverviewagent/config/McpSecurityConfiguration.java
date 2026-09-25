@@ -42,8 +42,9 @@ class McpSecurityConfiguration {
         var issuerUri = properties.requiredIssuerUri();
         var decoder = NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
         var audienceValidator = audienceValidator(properties.requiredAudience());
+        var tenantValidator = tenantValidator(properties.requiredTenantId());
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-            JwtValidators.createDefaultWithIssuer(issuerUri), audienceValidator));
+            JwtValidators.createDefaultWithIssuer(issuerUri), audienceValidator, tenantValidator));
         return decoder;
     }
 
@@ -52,5 +53,12 @@ class McpSecurityConfiguration {
             ? OAuth2TokenValidatorResult.success()
             : OAuth2TokenValidatorResult.failure(new OAuth2Error(
                 "invalid_token", "The token was not issued for this MCP server", null));
+    }
+
+    private OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> tenantValidator(String tenantId) {
+        return jwt -> tenantId.equals(jwt.getClaimAsString("tid"))
+            ? OAuth2TokenValidatorResult.success()
+            : OAuth2TokenValidatorResult.failure(new OAuth2Error(
+                "invalid_token", "The token was not issued by the configured Entra tenant", null));
     }
 }

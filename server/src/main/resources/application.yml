@@ -25,6 +25,7 @@ work-overview:
         enabled: ${WORK_OVERVIEW_SECURITY_ENABLED:true}
         issuer-uri: ${WORK_OVERVIEW_ENTRA_ISSUER_URI:}
         audience: ${WORK_OVERVIEW_ENTRA_AUDIENCE:}
+        tenant-id: ${WORK_OVERVIEW_ENTRA_TENANT_ID:}
 
 server:
     port: 8080
