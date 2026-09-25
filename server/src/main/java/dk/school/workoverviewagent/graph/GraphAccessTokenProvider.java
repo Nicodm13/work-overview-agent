@@ -1,21 +1,30 @@
 package dk.school.workoverviewagent.graph;
 
 import com.azure.core.credential.TokenRequestContext;
+import com.azure.core.exception.ClientAuthenticationException;
 import com.azure.identity.OnBehalfOfCredentialBuilder;
 import dk.school.workoverviewagent.config.GraphAuthenticationProperties;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+import java.util.List;
+
 public class GraphAccessTokenProvider implements IGraphAccessTokenProvider {
 
     private static final String GRAPH_DEFAULT_SCOPE = "https://graph.microsoft.com/.default";
+    private static final List<String> CONSENT_ERROR_CODES = List.of("AADSTS65001", "AADSTS65004", "AADSTS65005");
 
     private final GraphAuthenticationProperties properties;
     private final String tenantId;
+    private final IGraphConsentRequirements consentRequirements;
 
-    public GraphAccessTokenProvider(GraphAuthenticationProperties properties, String tenantId) {
+    public GraphAccessTokenProvider(
+        GraphAuthenticationProperties properties,
+        String tenantId,
+        IGraphConsentRequirements consentRequirements) {
         this.properties = properties;
         this.tenantId = tenantId;
+        this.consentRequirements = consentRequirements;
     }
 
     @Override
@@ -26,9 +35,17 @@ public class GraphAccessTokenProvider implements IGraphAccessTokenProvider {
             .userAssertion(currentUserAssertion());
 
         configureClientCredential(credential);
-        return credential.build()
-            .getTokenSync(new TokenRequestContext().addScopes(GRAPH_DEFAULT_SCOPE))
-            .getToken();
+        try {
+            return credential.build()
+                .getTokenSync(new TokenRequestContext().addScopes(GRAPH_DEFAULT_SCOPE))
+                .getToken();
+        } catch (ClientAuthenticationException exception) {
+            if (isConsentError(exception)) {
+                throw new GraphConsentRequiredException(
+                    consentRequirements.requiredDelegatedPermissions(), exception);
+            }
+            throw exception;
+        }
     }
 
     private void configureClientCredential(OnBehalfOfCredentialBuilder credential) {
@@ -54,5 +71,10 @@ public class GraphAccessTokenProvider implements IGraphAccessTokenProvider {
             throw new IllegalStateException("An authenticated Entra JWT is required to call Microsoft Graph");
         }
         return jwt.getTokenValue();
+    }
+
+    private boolean isConsentError(ClientAuthenticationException exception) {
+        var message = exception.getMessage();
+        return message != null && CONSENT_ERROR_CODES.stream().anyMatch(message::contains);
     }
 }
