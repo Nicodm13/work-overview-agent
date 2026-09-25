@@ -20,5 +20,11 @@ spring:
     flyway:
         enabled: true
 
+work-overview:
+    security:
+        enabled: ${WORK_OVERVIEW_SECURITY_ENABLED:true}
+        issuer-uri: ${WORK_OVERVIEW_ENTRA_ISSUER_URI:}
+        audience: ${WORK_OVERVIEW_ENTRA_AUDIENCE:}
+
 server:
     port: 8080
