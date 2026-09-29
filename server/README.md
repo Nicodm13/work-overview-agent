@@ -63,6 +63,10 @@ to execute the full Gradle test suite from IntelliJ.
 
 ## Connect Codex as an MCP client
 
+The default server configuration requires an Entra bearer token, so configure the client with the
+appropriate `Authorization: Bearer <token>` header before connecting. Do not expose the server without
+the JWT configuration described below.
+
 Add the server to Codex CLI:
 
 ```bash
@@ -87,12 +91,50 @@ Open the inspector in your browser and confirm that the server responds and expo
 ```powershell
 .\gradlew.bat :server:test
 .\gradlew.bat :server:build
+
+# Run the local JWT, tenant-scoping, and consent tests without Docker.
+.\gradlew.bat :server:authenticationTest
 ```
+
+## Microsoft Entra and Microsoft 365 configuration
+
+The MCP endpoint is a stateless OAuth 2.0 resource server. It validates Entra JWT signature, issuer,
+audience, expiry, and tenant before tools can access user-scoped state. The user identity stored by the
+server is the stable `<tenant-id>:<object-id>` pair from the token's `tid` and `oid` claims.
+
+Register the MCP server as a single-tenant confidential application in Microsoft Entra ID. Expose an API
+scope for the MCP client, then configure the server with the expected token values and one client
+credential:
+
+```powershell
+$env:WORK_OVERVIEW_ENTRA_ISSUER_URI = 'https://login.microsoftonline.com/<tenant-id>/v2.0'
+$env:WORK_OVERVIEW_ENTRA_AUDIENCE = 'api://<mcp-server-client-id>'
+$env:WORK_OVERVIEW_ENTRA_TENANT_ID = '<tenant-id>'
+$env:WORK_OVERVIEW_ENTRA_CLIENT_ID = '<mcp-server-client-id>'
+
+# Use exactly one client credential. Prefer a certificate outside local development.
+$env:WORK_OVERVIEW_ENTRA_CLIENT_SECRET = '<development-secret>'
+# $env:WORK_OVERVIEW_ENTRA_CERTIFICATE_PATH = 'C:\secure\mcp-server.pem'
+# $env:WORK_OVERVIEW_ENTRA_CERTIFICATE_PASSWORD = '<pfx-password-if-applicable>'
+```
+
+Grant only these delegated Microsoft Graph permissions to the Entra app registration:
+
+- `Mail.Read` for Outlook email.
+- `Calendars.Read` for calendar events.
+- `Chat.Read` for the signed-in user's Teams chats.
+- `ChannelMessage.Read.All` for Teams channel messages. This requires tenant-admin consent.
+- `Notes.Read` for an initial OneNote-backed meeting-note adapter.
+
+The server uses OAuth's on-behalf-of flow to call Microsoft Graph with the signed-in user's delegated
+authority. It never uses application permissions. If Entra reports missing or declined consent, the server
+returns a consent-required error containing this exact permission set; it does not silently request a
+broader permission.
 
 ## Notes
 
 - This server currently uses the Spring AI MCP WebMVC starter with Streamable HTTP.
-- The MCP endpoint is intended for local development unless additional security is added.
+- The MCP endpoint requires a correctly configured Entra JWT in the default configuration.
 - Application services are deterministic boundaries. Source adapters fetch and normalize data, Evidence stores source
   references and excerpts, FollowUp stores explicitly requested evidence links, Status stores user-confirmed state, and
   Action stores explicit drafts, approvals, and audit entries. AI reasoning, prioritization, grouping, and semantic

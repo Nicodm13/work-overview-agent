@@ -36,7 +36,7 @@ public class CucumberSpringConfiguration {
 
         @Bean
         @Primary
-        IUserProvider userProvider() {
+        IUserProvider testUserProvider() {
             return () -> "test-tenant:test-user";
         }
     }

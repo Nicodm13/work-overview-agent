@@ -7,12 +7,9 @@ import dk.school.workoverviewagent.config.GraphAuthenticationProperties;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-import java.util.List;
-
 public class GraphAccessTokenProvider implements IGraphAccessTokenProvider {
 
     private static final String GRAPH_DEFAULT_SCOPE = "https://graph.microsoft.com/.default";
-    private static final List<String> CONSENT_ERROR_CODES = List.of("AADSTS65001", "AADSTS65004", "AADSTS65005");
 
     private final GraphAuthenticationProperties properties;
     private final String tenantId;
@@ -40,7 +37,7 @@ public class GraphAccessTokenProvider implements IGraphAccessTokenProvider {
                 .getTokenSync(new TokenRequestContext().addScopes(GRAPH_DEFAULT_SCOPE))
                 .getToken();
         } catch (ClientAuthenticationException exception) {
-            if (isConsentError(exception)) {
+            if (GraphConsentErrorClassifier.requiresConsent(exception.getMessage())) {
                 throw new GraphConsentRequiredException(
                     consentRequirements.requiredDelegatedPermissions(), exception);
             }
@@ -73,8 +70,4 @@ public class GraphAccessTokenProvider implements IGraphAccessTokenProvider {
         return jwt.getTokenValue();
     }
 
-    private boolean isConsentError(ClientAuthenticationException exception) {
-        var message = exception.getMessage();
-        return message != null && CONSENT_ERROR_CODES.stream().anyMatch(message::contains);
-    }
 }
