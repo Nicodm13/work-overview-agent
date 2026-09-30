@@ -191,7 +191,7 @@ class ActionService implements IActionService {
         if (actionType == ActionType.MEETING_INVITATION
             && selectedStartsAt != null
             && selectedEndsAt != null
-            && selectedEndsAt.isBefore(selectedStartsAt())) {
+            && selectedEndsAt.isBefore(selectedStartsAt)) {
             throw new IllegalArgumentException("selectedEndsAt must not be before selectedStartsAt");
         }
     }
