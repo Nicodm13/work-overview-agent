@@ -55,6 +55,45 @@ class ActionRepository implements IActionRepository {
     }
 
     @Override
+    public boolean updateDraft(String ownerId, ActionDraft draft) {
+        return jdbc.update(
+            """
+                UPDATE ACTION_DRAFT
+                SET RECIPIENTS = ?,
+                    SUBJECT = ?,
+                    BODY = ?,
+                    MEETING_TITLE = ?,
+                    SELECTED_STARTS_AT = ?,
+                    SELECTED_ENDS_AT = ?,
+                    AGENDA = ?,
+                    EDITABLE_CONTEXT = ?,
+                    CHANGED = CURRENT_TIMESTAMP,
+                    CHANGED_BY = ?,
+                    VERSION = VERSION + 1
+                WHERE OWNER_ID = ?
+                  AND ID = ?
+                  AND EXISTS (
+                      SELECT 1
+                      FROM ACTION_STATE
+                      WHERE ACTION_STATE.OWNER_ID = ACTION_DRAFT.OWNER_ID
+                        AND ACTION_STATE.DRAFT_ID = ACTION_DRAFT.ID
+                        AND ACTION_STATE.STATUS = 'DRAFT'
+                  )
+                """,
+            serialize(draft.recipients()),
+            draft.subject(),
+            draft.body(),
+            draft.meetingTitle(),
+            timestamp(draft.selectedStartsAt()),
+            timestamp(draft.selectedEndsAt()),
+            serialize(draft.agenda()),
+            draft.editableContext(),
+            ownerId,
+            ownerId,
+            draft.id()) == 1;
+    }
+
+    @Override
     public Optional<ActionDraft> findDraftById(String ownerId, String draftId) {
         return jdbc.query(
                 """

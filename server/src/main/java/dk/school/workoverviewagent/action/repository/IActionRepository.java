@@ -14,6 +14,8 @@ import java.util.Optional;
 public interface IActionRepository {
     void saveDraft(String ownerId, ActionDraft draft);
 
+    boolean updateDraft(String ownerId, ActionDraft draft);
+
     Optional<ActionDraft> findDraftById(String ownerId, String draftId);
 
     List<ActionDraft> findActiveDrafts(String ownerId);

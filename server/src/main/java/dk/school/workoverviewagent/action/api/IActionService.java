@@ -10,6 +10,8 @@ public interface IActionService {
 
     CreateActionDraftResponse createDraft(CreateActionDraftRequest request);
 
+    UpdateActionDraftResponse updateDraft(UpdateActionDraftRequest request);
+
     ApproveActionResponse approveDraft(ApproveActionRequest request);
 
     ExecuteApprovedActionResponse executeApprovedAction(ExecuteApprovedActionRequest request);
