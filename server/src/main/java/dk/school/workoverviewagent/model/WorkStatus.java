@@ -5,6 +5,5 @@ public enum WorkStatus {
     WAITING,
     RESOLVED,
     NOT_RELEVANT,
-    UNVERIFIED,
-    POSSIBLY_REOPENED
+    UNVERIFIED
 }
