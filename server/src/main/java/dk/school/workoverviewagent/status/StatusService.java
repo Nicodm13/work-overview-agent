@@ -1,25 +1,26 @@
 package dk.school.workoverviewagent.status;
 
 import dk.school.workoverviewagent.followup.api.IFollowUpService;
+import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.StatusSource;
 import dk.school.workoverviewagent.model.WorkStatus;
 import dk.school.workoverviewagent.model.WorkStatusRecord;
 import dk.school.workoverviewagent.status.api.IStatusService;
+import dk.school.workoverviewagent.status.contract.FindNewEvidenceRequest;
+import dk.school.workoverviewagent.status.contract.FindNewEvidenceResponse;
 import dk.school.workoverviewagent.status.contract.GetWorkStatusRequest;
 import dk.school.workoverviewagent.status.contract.GetWorkStatusResponse;
+import dk.school.workoverviewagent.status.contract.NewEvidenceForResolvedItem;
 import dk.school.workoverviewagent.status.contract.UpdateWorkStatusRequest;
 import dk.school.workoverviewagent.status.contract.UpdateWorkStatusResponse;
 import dk.school.workoverviewagent.status.repository.IStatusRepository;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import org.springframework.stereotype.Component;
-
-import java.time.Instant;
-import java.util.*;
 
 @Component
 class StatusService implements IStatusService {
@@ -65,6 +66,31 @@ class StatusService implements IStatusService {
     }
 
     @Override
+    public FindNewEvidenceResponse findNewEvidenceForResolvedItems(FindNewEvidenceRequest request) {
+        Objects.requireNonNull(request, "request must not be null");
+        validateOwnerId(request.ownerId());
+
+        var items = followUpService.listFollowUpItems(request.ownerId()).stream()
+            .flatMap(item -> latestUserConfirmedStatus(request.ownerId(), item.id())
+                .filter(status -> status.status() == WorkStatus.RESOLVED)
+                .stream()
+                .flatMap(status -> item.evidenceReferences().stream()
+                    .filter(reference -> wasCapturedAfterResolution(reference, status))
+                    .map(reference -> new NewEvidenceForResolvedItem(
+                        item.id(),
+                        item.title(),
+                        status.updatedAt(),
+                        reference))))
+            .sorted(Comparator
+                .comparing((NewEvidenceForResolvedItem item) -> item.evidenceReference().timestamp())
+                .thenComparing(NewEvidenceForResolvedItem::followUpItemId)
+                .thenComparing(item -> item.evidenceReference().id()))
+            .toList();
+
+        return new FindNewEvidenceResponse(request.ownerId(), items);
+    }
+
+    @Override
     public UpdateWorkStatusResponse updateWorkStatus(UpdateWorkStatusRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateFollowUpItemId(request.followUpItemId());
@@ -97,6 +123,22 @@ class StatusService implements IStatusService {
 
     private List<WorkStatusRecord> historyFor(String ownerId, String followUpItemId) {
         return statusRepository.findHistory(ownerId, followUpItemId);
+    }
+
+    private java.util.Optional<WorkStatusRecord> latestUserConfirmedStatus(
+        String ownerId,
+        String followUpItemId) {
+        return historyFor(ownerId, followUpItemId).stream()
+            .filter(status -> status.statusSource() == StatusSource.USER_CONFIRMED)
+            .reduce((first, second) -> second);
+    }
+
+    private boolean wasCapturedAfterResolution(
+        EvidenceReference reference,
+        WorkStatusRecord resolvedStatus) {
+        return reference.timestamp() != null
+            && resolvedStatus.updatedAt() != null
+            && reference.timestamp().isAfter(resolvedStatus.updatedAt());
     }
 
     private void validateOwnerId(String ownerId) {
