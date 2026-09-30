@@ -63,6 +63,32 @@ class ActionService implements IActionService {
 
     @Override
     @Transactional
+    public UpdateActionDraftResponse updateDraft(UpdateActionDraftRequest request) {
+        Objects.requireNonNull(request, "request must not be null");
+        validateOwnerId(request.ownerId());
+        var existingDraft = draftFor(request.ownerId(), request.draftId());
+        var updatedDraft = new ActionDraft(
+            existingDraft.id(),
+            existingDraft.ownerId(),
+            existingDraft.actionType(),
+            existingDraft.followUpItemId(),
+            request.recipients(),
+            request.subject(),
+            request.body(),
+            request.meetingTitle(),
+            request.selectedStartsAt(),
+            request.selectedEndsAt(),
+            request.agenda(),
+            request.editableContext());
+        validateDraftTimes(updatedDraft.actionType(), updatedDraft.selectedStartsAt(), updatedDraft.selectedEndsAt());
+        if (!actionRepository.updateDraft(request.ownerId(), updatedDraft)) {
+            throw new IllegalStateException("only unapproved drafts can be edited");
+        }
+        return new UpdateActionDraftResponse(updatedDraft);
+    }
+
+    @Override
+    @Transactional
     public ApproveActionResponse approveDraft(ApproveActionRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         validateOwnerId(request.ownerId());
@@ -155,10 +181,17 @@ class ActionService implements IActionService {
         if (request.followUpItemId() == null || request.followUpItemId().isBlank()) {
             throw new IllegalArgumentException("followUpItemId must not be blank");
         }
-        if (request.actionType() == ActionType.MEETING_INVITATION
-            && request.selectedStartsAt() != null
-            && request.selectedEndsAt() != null
-            && request.selectedEndsAt().isBefore(request.selectedStartsAt())) {
+        validateDraftTimes(request.actionType(), request.selectedStartsAt(), request.selectedEndsAt());
+    }
+
+    private void validateDraftTimes(
+        ActionType actionType,
+        Instant selectedStartsAt,
+        Instant selectedEndsAt) {
+        if (actionType == ActionType.MEETING_INVITATION
+            && selectedStartsAt != null
+            && selectedEndsAt != null
+            && selectedEndsAt.isBefore(selectedStartsAt())) {
             throw new IllegalArgumentException("selectedEndsAt must not be before selectedStartsAt");
         }
     }
