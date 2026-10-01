@@ -8,6 +8,8 @@ import dk.school.workoverviewagent.action.contract.CreateActionDraftResponse;
 import dk.school.workoverviewagent.action.contract.DeleteActionDraftResponse;
 import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionRequest;
 import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionResponse;
+import dk.school.workoverviewagent.action.contract.UpdateActionDraftRequest;
+import dk.school.workoverviewagent.action.contract.UpdateActionDraftResponse;
 import dk.school.workoverviewagent.model.ActionDraft;
 import dk.school.workoverviewagent.model.ActionType;
 import dk.school.workoverviewagent.user.IUserProvider;
@@ -61,6 +63,45 @@ public class ActionTools {
             userProvider.getUserId(),
             actionType,
             followUpItemId,
+            recipients == null ? List.of() : recipients,
+            subject,
+            body,
+            meetingTitle,
+            toInstantOrNull(selectedStartsAt),
+            toInstantOrNull(selectedEndsAt),
+            agenda == null ? List.of() : agenda,
+            editableContext));
+    }
+
+    @McpTool(
+        name = "update_action_draft",
+        description = "Replace the editable content of an unapproved action draft. Updating a draft does not approve or send it.",
+        annotations = @McpTool.McpAnnotations(
+            readOnlyHint = false,
+            destructiveHint = false,
+            idempotentHint = false))
+    public UpdateActionDraftResponse updateActionDraft(
+        @McpToolParam(description = "ID of the unapproved action draft to edit.", required = true)
+        String draftId,
+        @McpToolParam(description = "Edited recipients. The user can remove or replace recipients before approval.", required = false)
+        List<String> recipients,
+        @McpToolParam(description = "Edited email subject, when applicable.", required = false)
+        String subject,
+        @McpToolParam(description = "Edited message or email body, when applicable.", required = false)
+        String body,
+        @McpToolParam(description = "Edited meeting title, when applicable.", required = false)
+        String meetingTitle,
+        @McpToolParam(description = "Edited meeting start as an ISO-8601 instant, when applicable.", required = false)
+        String selectedStartsAt,
+        @McpToolParam(description = "Edited meeting end as an ISO-8601 instant, when applicable.", required = false)
+        String selectedEndsAt,
+        @McpToolParam(description = "Edited meeting agenda entries, when applicable.", required = false)
+        List<String> agenda,
+        @McpToolParam(description = "Edited context explaining why this draft was prepared.", required = false)
+        String editableContext) {
+        return actionService.updateDraft(new UpdateActionDraftRequest(
+            userProvider.getUserId(),
+            draftId,
             recipients == null ? List.of() : recipients,
             subject,
             body,

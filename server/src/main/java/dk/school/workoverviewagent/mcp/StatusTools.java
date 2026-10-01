@@ -3,6 +3,8 @@ package dk.school.workoverviewagent.mcp;
 import dk.school.workoverviewagent.model.StatusSource;
 import dk.school.workoverviewagent.model.WorkStatus;
 import dk.school.workoverviewagent.status.api.IStatusService;
+import dk.school.workoverviewagent.status.contract.FindNewEvidenceRequest;
+import dk.school.workoverviewagent.status.contract.FindNewEvidenceResponse;
 import dk.school.workoverviewagent.status.contract.GetWorkStatusRequest;
 import dk.school.workoverviewagent.status.contract.GetWorkStatusResponse;
 import dk.school.workoverviewagent.status.contract.UpdateWorkStatusRequest;
@@ -37,6 +39,19 @@ public class StatusTools {
         return statusService.getWorkStatus(new GetWorkStatusRequest(
             userProvider.getUserId(),
             followUpItemId));
+    }
+
+    @McpTool(
+        name = "find_new_evidence",
+        description = "Return explicitly linked evidence captured after an item's latest user-confirmed resolution. This does not determine a conflict, reopen an item, or update its status.",
+        generateOutputSchema = true,
+        annotations = @McpTool.McpAnnotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true))
+    public FindNewEvidenceResponse findNewEvidence() {
+        return statusService.findNewEvidenceForResolvedItems(
+            new FindNewEvidenceRequest(userProvider.getUserId()));
     }
 
     @McpTool(

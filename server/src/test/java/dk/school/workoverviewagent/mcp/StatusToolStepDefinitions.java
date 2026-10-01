@@ -1,13 +1,18 @@
 package dk.school.workoverviewagent.mcp;
 
+import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.FollowUpItem;
+import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.model.StatusSource;
 import dk.school.workoverviewagent.model.WorkStatus;
+import dk.school.workoverviewagent.status.contract.FindNewEvidenceResponse;
 import dk.school.workoverviewagent.status.contract.GetWorkStatusResponse;
 import dk.school.workoverviewagent.status.contract.UpdateWorkStatusResponse;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -21,6 +26,7 @@ public class StatusToolStepDefinitions {
     private FollowUpItem createdFollowUpItem;
     private UpdateWorkStatusResponse statusUpdateResponse;
     private GetWorkStatusResponse statusResponse;
+    private FindNewEvidenceResponse newEvidenceResponse;
 
     @When("the status tool scenario creates a follow-up item with title {string}")
     public void createFollowUpItem(String title) {
@@ -44,6 +50,38 @@ public class StatusToolStepDefinitions {
     @When("the get_status MCP tool is called for the created follow-up item")
     public void getStatus() {
         statusResponse = statusTools.getStatus(createdFollowUpItem.id());
+    }
+
+    @When("later email evidence is linked to the created follow-up item")
+    public void linkLaterEmailEvidence() {
+        followUpTools.attachEvidenceToFollowUp(
+            createdFollowUpItem.id(),
+            new EvidenceReference(
+                "later-email-evidence",
+                SourceType.OUTLOOK,
+                "email-later-1",
+                Instant.parse("2099-01-01T08:30:00Z"),
+                "Maja Jensen",
+                "New question about the resolved item",
+                "Can you help with this again?",
+                1.0));
+    }
+
+    @When("the find_new_evidence MCP tool is called")
+    public void findNewEvidence() {
+        newEvidenceResponse = statusTools.findNewEvidence();
+    }
+
+    @Then("the new evidence result contains the created follow-up item")
+    public void newEvidenceResultContainsCreatedFollowUpItem() {
+        assertThat(newEvidenceResponse.items())
+            .extracting(item -> item.followUpItemId())
+            .containsExactly(createdFollowUpItem.id());
+    }
+
+    @Then("the new evidence result is empty")
+    public void newEvidenceResultIsEmpty() {
+        assertThat(newEvidenceResponse.items()).isEmpty();
     }
 
     @Then("the retrieved status is {string} from {string}")
