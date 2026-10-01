@@ -21,15 +21,23 @@ import org.springframework.security.web.SecurityFilterChain;
 class McpSecurityConfiguration {
 
     @Bean
-    SecurityFilterChain mcpSecurityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain mcpSecurityFilterChain(HttpSecurity http, McpSecurityProperties properties) throws Exception {
         return http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/error").permitAll()
+                .requestMatchers("/.well-known/oauth-protected-resource/**").permitAll()
                 .requestMatchers("/mcp", "/mcp/**").authenticated()
                 .anyRequest().denyAll())
-            .oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()))
+            .oauth2ResourceServer(resourceServer -> resourceServer
+                .protectedResourceMetadata(metadata -> metadata.protectedResourceMetadataCustomizer(resource -> resource
+                    .resource(properties.requiredResourceUri())
+                    .authorizationServer(properties.requiredIssuerUri())
+                    .scope(properties.requiredAudience() + "/access_as_user")
+                    .resourceName("Work Overview Agent")
+                    .tlsClientCertificateBoundAccessTokens(false)))
+                .jwt(Customizer.withDefaults()))
             .build();
     }
 

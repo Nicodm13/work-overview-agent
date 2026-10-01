@@ -28,8 +28,18 @@ show the exact Codex command without changing the local configuration:
 .\install.ps1 -ServerUrl http://localhost:8080/mcp -DryRun
 ```
 
-The installed endpoint can be inspected with `codex mcp list`. The package does not contain
-credentials. Authentication configuration will be added with the network deployment work.
+The installed endpoint can be inspected with `codex mcp list`. In this repository, the installer
+reads only the public client ID and audience from `server/.env` when it is available. For a separately
+installed client package, set the existing Work Overview app registration's client ID before running
+the installer, then sign in through the browser:
+
+```powershell
+$env:WORK_OVERVIEW_ENTRA_CLIENT_ID = '<Work Overview app client ID>'
+./install.ps1
+```
+
+The client ID is public. Do not put the backend client secret in this package or on a client
+machine. The installer registers the MCP server and opens the Entra sign-in flow.
 
 ## Package structure
 

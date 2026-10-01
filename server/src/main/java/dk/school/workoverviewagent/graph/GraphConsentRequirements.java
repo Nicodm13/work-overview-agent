@@ -11,7 +11,6 @@ class GraphConsentRequirements implements IGraphConsentRequirements {
         GraphDelegatedPermission.MAIL_READ,
         GraphDelegatedPermission.CALENDARS_READ,
         GraphDelegatedPermission.TEAMS_CHAT_READ,
-        GraphDelegatedPermission.TEAMS_CHANNEL_MESSAGE_READ,
         GraphDelegatedPermission.ONENOTE_READ);
 
     @Override

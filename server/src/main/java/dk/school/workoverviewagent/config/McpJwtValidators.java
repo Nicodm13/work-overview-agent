@@ -17,7 +17,8 @@ final class McpJwtValidators {
         return new DelegatingOAuth2TokenValidator<>(
             JwtValidators.createDefaultWithIssuer(issuerUri),
             audienceValidator(properties.requiredAudience()),
-            tenantValidator(properties.requiredTenantId()));
+            tenantValidator(properties.requiredTenantId()),
+            scopeValidator("access_as_user"));
     }
 
     private static OAuth2TokenValidator<Jwt> audienceValidator(String audience) {
@@ -32,5 +33,13 @@ final class McpJwtValidators {
             ? OAuth2TokenValidatorResult.success()
             : OAuth2TokenValidatorResult.failure(new OAuth2Error(
                 "invalid_token", "The token was not issued by the configured Entra tenant", null));
+    }
+
+    private static OAuth2TokenValidator<Jwt> scopeValidator(String requiredScope) {
+        return jwt -> jwt.getClaimAsString("scp") != null
+            && java.util.Arrays.asList(jwt.getClaimAsString("scp").split(" ")).contains(requiredScope)
+            ? OAuth2TokenValidatorResult.success()
+            : OAuth2TokenValidatorResult.failure(new OAuth2Error(
+                "insufficient_scope", "The token does not grant access to the MCP server", null));
     }
 }

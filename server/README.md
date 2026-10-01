@@ -63,18 +63,15 @@ to execute the full Gradle test suite from IntelliJ.
 
 ## Connect Codex as an MCP client
 
-The default server configuration requires an Entra bearer token, so configure the client with the
-appropriate `Authorization: Bearer <token>` header before connecting. Do not expose the server without
-the JWT configuration described below.
+The default server configuration requires an Entra bearer token. Configure the backend `.env` file
+below, then register and sign in through the client installer:
 
-Add the server to Codex CLI:
-
-```bash
-codex mcp add work-overview-agent --url http://localhost:8080/mcp
-codex mcp list
+```powershell
+cd client
+./install.ps1
 ```
 
-If the server is registered correctly, it will appear in the MCP list and can be used from Codex sessions.
+Do not expose the server without the Entra JWT configuration described below.
 
 ## Use the MCP Inspector
 
@@ -106,25 +103,21 @@ Register the MCP server as a single-tenant confidential application in Microsoft
 scope for the MCP client, then configure the server with the expected token values and one client
 credential:
 
-```powershell
-$env:WORK_OVERVIEW_ENTRA_ISSUER_URI = 'https://login.microsoftonline.com/<tenant-id>/v2.0'
-$env:WORK_OVERVIEW_ENTRA_AUDIENCE = 'api://<mcp-server-client-id>'
-$env:WORK_OVERVIEW_ENTRA_TENANT_ID = '<tenant-id>'
-$env:WORK_OVERVIEW_ENTRA_CLIENT_ID = '<mcp-server-client-id>'
+Copy `server/.env.example` to `server/.env` and fill in the values. `server/.env` is loaded automatically
+when the application starts from either the repository root or the `server` directory, and is ignored by Git.
+It must never be copied into `client/`.
 
-# Use exactly one client credential. Prefer a certificate outside local development.
-$env:WORK_OVERVIEW_ENTRA_CLIENT_SECRET = '<development-secret>'
-# $env:WORK_OVERVIEW_ENTRA_CERTIFICATE_PATH = 'C:\secure\mcp-server.pem'
-# $env:WORK_OVERVIEW_ENTRA_CERTIFICATE_PASSWORD = '<pfx-password-if-applicable>'
-```
+Use exactly one backend credential. A client secret is appropriate for local development; prefer a
+certificate in a deployed environment.
 
 Grant only these delegated Microsoft Graph permissions to the Entra app registration:
 
 - `Mail.Read` for Outlook email.
 - `Calendars.Read` for calendar events.
 - `Chat.Read` for the signed-in user's Teams chats.
-- `ChannelMessage.Read.All` for Teams channel messages. This requires tenant-admin consent.
 - `Notes.Read` for an initial OneNote-backed meeting-note adapter.
+
+`ChannelMessage.Read.All` is intentionally deferred until the initial integrations have been verified.
 
 The server uses OAuth's on-behalf-of flow to call Microsoft Graph with the signed-in user's delegated
 authority. It never uses application permissions. If Entra reports missing or declined consent, the server

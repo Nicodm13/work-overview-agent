@@ -47,6 +47,7 @@ class McpSecurityHttpTest {
         registry.add("work-overview.security.issuer-uri", () -> ISSUER);
         registry.add("work-overview.security.audience", () -> AUDIENCE);
         registry.add("work-overview.security.tenant-id", () -> "tenant-a");
+        registry.add("work-overview.security.resource-uri", () -> "http://localhost:8080/mcp");
     }
 
     @AfterAll
@@ -61,8 +62,31 @@ class McpSecurityHttpTest {
     }
 
     @Test
+    void publishesEntraProtectedResourceMetadata() throws Exception {
+        mockMvc.perform(get("/.well-known/oauth-protected-resource"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(content().json("""
+                {
+                  "resource":"http://localhost:8080/mcp",
+                  "authorization_servers":["%s"],
+                  "scopes_supported":["%s/access_as_user"],
+                  "bearer_methods_supported":["header"],
+                  "tls_client_certificate_bound_access_tokens":false
+                }
+                """.formatted(ISSUER, AUDIENCE), false));
+    }
+
+    @Test
     void rejectsATokenForAnotherAudience() throws Exception {
         mockMvc.perform(get("/mcp").header("Authorization", "Bearer " + token(SIGNING_KEY, "other-api", "tenant-a", Instant.now().plusSeconds(60))))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsATokenWithoutTheAccessAsUserScope() throws Exception {
+        mockMvc.perform(get("/mcp").header("Authorization", "Bearer " + token(
+            SIGNING_KEY, AUDIENCE, "tenant-a", Instant.now().plusSeconds(60), "User.Read")))
             .andExpect(status().isUnauthorized());
     }
 
@@ -89,12 +113,18 @@ class McpSecurityHttpTest {
     }
 
     private static String token(RSAKey key, String audience, String tenantId, Instant expiresAt) throws JOSEException {
+        return token(key, audience, tenantId, expiresAt, "access_as_user");
+    }
+
+    private static String token(RSAKey key, String audience, String tenantId, Instant expiresAt, String scopes)
+            throws JOSEException {
         var claims = new JWTClaimsSet.Builder()
             .issuer(ISSUER)
             .subject("subject-a")
             .audience(audience)
             .claim("tid", tenantId)
             .claim("oid", "object-a")
+            .claim("scp", scopes)
             .issueTime(new Date())
             .expirationTime(Date.from(expiresAt))
             .build();

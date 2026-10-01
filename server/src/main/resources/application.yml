@@ -2,6 +2,11 @@ spring:
     application:
         name: work-overview-agent
 
+    config:
+        import:
+            - optional:file:./.env[.properties]
+            - optional:file:./server/.env[.properties]
+
     ai:
         mcp:
             server:
@@ -26,6 +31,7 @@ work-overview:
         issuer-uri: ${WORK_OVERVIEW_ENTRA_ISSUER_URI:}
         audience: ${WORK_OVERVIEW_ENTRA_AUDIENCE:}
         tenant-id: ${WORK_OVERVIEW_ENTRA_TENANT_ID:}
+        resource-uri: ${WORK_OVERVIEW_MCP_RESOURCE_URI:}
 
     graph:
         authentication:
@@ -35,4 +41,4 @@ work-overview:
             certificate-password: ${WORK_OVERVIEW_ENTRA_CERTIFICATE_PASSWORD:}
 
 server:
-    port: 8080
+    port: ${SERVER_PORT:8080}
