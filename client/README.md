@@ -10,7 +10,9 @@ Run the installer from this directory. It registers the server in Codex using `c
 Codex CLI, the Codex IDE extension, and the ChatGPT desktop app share MCP configuration on the
 same host.
 
-In IntelliJ, run the shared `Install MCP Client` configuration to use the default local endpoint.
+In IntelliJ, run the shared `Install MCP Client` configuration to use the default local HTTPS
+endpoint. First generate and trust the local development certificate as described in
+`server/README.md`, and add the exact HTTPS MCP URL as an Application ID URI in Entra.
 
 ```powershell
 # Local server (the default)
@@ -25,11 +27,11 @@ Pass `-ServerUrl` to override the environment variable for one installation, or 
 show the exact Codex command without changing the local configuration:
 
 ```powershell
-.\install.ps1 -ServerUrl http://localhost:8080/mcp -DryRun
+.\install.ps1 -ServerUrl https://localhost:8080/mcp -DryRun
 ```
 
 The installed endpoint can be inspected with `codex mcp list`. In this repository, the installer
-reads only the public client ID and audience from `server/.env` when it is available. For a separately
+reads only the public client ID and server URL from `server/.env` when it is available. For a separately
 installed client package, set the existing Work Overview app registration's client ID before running
 the installer, then sign in through the browser:
 

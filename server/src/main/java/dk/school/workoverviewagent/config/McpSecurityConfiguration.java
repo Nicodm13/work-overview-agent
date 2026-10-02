@@ -34,7 +34,7 @@ class McpSecurityConfiguration {
                 .protectedResourceMetadata(metadata -> metadata.protectedResourceMetadataCustomizer(resource -> resource
                     .resource(properties.requiredResourceUri())
                     .authorizationServer(properties.requiredIssuerUri())
-                    .scope(properties.requiredAudience() + "/access_as_user")
+                    .scope(properties.requiredScope())
                     .resourceName("Work Overview Agent")
                     .tlsClientCertificateBoundAccessTokens(false)))
                 .jwt(Customizer.withDefaults()))

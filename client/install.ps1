@@ -43,7 +43,7 @@ if ([string]::IsNullOrWhiteSpace($ServerUrl)) {
     $ServerUrl = Get-LocalEnvironmentValue 'WORK_OVERVIEW_MCP_URL'
 }
 if ([string]::IsNullOrWhiteSpace($ServerUrl)) {
-    $ServerUrl = 'http://localhost:8080/mcp'
+    $ServerUrl = 'https://localhost:8080/mcp'
 }
 
 try {

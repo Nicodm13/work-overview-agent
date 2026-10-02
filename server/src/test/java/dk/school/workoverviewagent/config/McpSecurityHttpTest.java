@@ -35,7 +35,8 @@ class McpSecurityHttpTest {
 
     private static final HttpServer OPENID_SERVER = startOpenIdServer();
     private static final String ISSUER = "http://127.0.0.1:" + OPENID_SERVER.getAddress().getPort() + "/issuer";
-    private static final String AUDIENCE = "api://work-overview-agent";
+    private static final String AUDIENCE = "work-overview-client-id";
+    private static final String SCOPE = "https://localhost:8080/mcp/access_as_user";
     private static final RSAKey SIGNING_KEY = generateKey();
 
     @Autowired
@@ -46,8 +47,9 @@ class McpSecurityHttpTest {
         registry.add("work-overview.security.enabled", () -> true);
         registry.add("work-overview.security.issuer-uri", () -> ISSUER);
         registry.add("work-overview.security.audience", () -> AUDIENCE);
+        registry.add("work-overview.security.scope", () -> SCOPE);
         registry.add("work-overview.security.tenant-id", () -> "tenant-a");
-        registry.add("work-overview.security.resource-uri", () -> "http://localhost:8080/mcp");
+        registry.add("work-overview.security.resource-uri", () -> "https://localhost:8080/mcp");
     }
 
     @AfterAll
@@ -68,13 +70,13 @@ class McpSecurityHttpTest {
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json("""
                 {
-                  "resource":"http://localhost:8080/mcp",
+                  "resource":"https://localhost:8080/mcp",
                   "authorization_servers":["%s"],
-                  "scopes_supported":["%s/access_as_user"],
+                  "scopes_supported":["%s"],
                   "bearer_methods_supported":["header"],
                   "tls_client_certificate_bound_access_tokens":false
                 }
-                """.formatted(ISSUER, AUDIENCE), false));
+                """.formatted(ISSUER, SCOPE), false));
     }
 
     @Test

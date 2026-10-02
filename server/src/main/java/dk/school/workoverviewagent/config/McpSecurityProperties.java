@@ -3,7 +3,13 @@ package dk.school.workoverviewagent.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("work-overview.security")
-public record McpSecurityProperties(boolean enabled, String issuerUri, String audience, String tenantId, String resourceUri) {
+public record McpSecurityProperties(
+    boolean enabled,
+    String issuerUri,
+    String audience,
+    String scope,
+    String tenantId,
+    String resourceUri) {
 
     public String requiredIssuerUri() {
         if (issuerUri == null || issuerUri.isBlank()) {
@@ -19,6 +25,14 @@ public record McpSecurityProperties(boolean enabled, String issuerUri, String au
                 "WORK_OVERVIEW_ENTRA_AUDIENCE must be configured when MCP security is enabled");
         }
         return audience;
+    }
+
+    public String requiredScope() {
+        if (scope == null || scope.isBlank()) {
+            throw new IllegalStateException(
+                "WORK_OVERVIEW_ENTRA_SCOPE must be configured when MCP security is enabled");
+        }
+        return scope;
     }
 
     public String requiredTenantId() {
