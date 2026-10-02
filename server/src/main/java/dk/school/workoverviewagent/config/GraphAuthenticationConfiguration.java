@@ -1,7 +1,6 @@
 package dk.school.workoverviewagent.config;
 
 import dk.school.workoverviewagent.graph.GraphAccessTokenProvider;
-import dk.school.workoverviewagent.graph.IGraphConsentRequirements;
 import dk.school.workoverviewagent.graph.IGraphAccessTokenProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -16,12 +15,10 @@ class GraphAuthenticationConfiguration {
     @Bean
     IGraphAccessTokenProvider graphAccessTokenProvider(
         GraphAuthenticationProperties graphProperties,
-        McpSecurityProperties securityProperties,
-        IGraphConsentRequirements consentRequirements) {
+        McpSecurityProperties securityProperties) {
         graphProperties.validateCredentialConfiguration();
         return new GraphAccessTokenProvider(
             graphProperties,
-            securityProperties.requiredTenantId(),
-            consentRequirements);
+            securityProperties.requiredTenantId());
     }
 }

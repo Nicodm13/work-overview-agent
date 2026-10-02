@@ -1,7 +1,6 @@
 package dk.school.workoverviewagent.graph;
 
 import com.azure.core.credential.TokenRequestContext;
-import com.azure.core.exception.ClientAuthenticationException;
 import com.azure.identity.OnBehalfOfCredentialBuilder;
 import dk.school.workoverviewagent.config.GraphAuthenticationProperties;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -13,15 +12,10 @@ public class GraphAccessTokenProvider implements IGraphAccessTokenProvider {
 
     private final GraphAuthenticationProperties properties;
     private final String tenantId;
-    private final IGraphConsentRequirements consentRequirements;
 
-    public GraphAccessTokenProvider(
-        GraphAuthenticationProperties properties,
-        String tenantId,
-        IGraphConsentRequirements consentRequirements) {
+    public GraphAccessTokenProvider(GraphAuthenticationProperties properties, String tenantId) {
         this.properties = properties;
         this.tenantId = tenantId;
-        this.consentRequirements = consentRequirements;
     }
 
     @Override
@@ -32,17 +26,9 @@ public class GraphAccessTokenProvider implements IGraphAccessTokenProvider {
             .userAssertion(currentUserAssertion());
 
         configureClientCredential(credential);
-        try {
-            return credential.build()
-                .getTokenSync(new TokenRequestContext().addScopes(GRAPH_DEFAULT_SCOPE))
-                .getToken();
-        } catch (ClientAuthenticationException exception) {
-            if (GraphConsentErrorClassifier.requiresConsent(exception.getMessage())) {
-                throw new GraphConsentRequiredException(
-                    consentRequirements.requiredDelegatedPermissions(), exception);
-            }
-            throw exception;
-        }
+        return credential.build()
+            .getTokenSync(new TokenRequestContext().addScopes(GRAPH_DEFAULT_SCOPE))
+            .getToken();
     }
 
     private void configureClientCredential(OnBehalfOfCredentialBuilder credential) {
@@ -69,5 +55,4 @@ public class GraphAccessTokenProvider implements IGraphAccessTokenProvider {
         }
         return jwt.getTokenValue();
     }
-
 }

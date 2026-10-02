@@ -89,7 +89,7 @@ Open the inspector in your browser and confirm that the server responds and expo
 .\gradlew.bat :server:test
 .\gradlew.bat :server:build
 
-# Run the local JWT, tenant-scoping, and consent tests without Docker.
+# Run the local JWT and tenant-scoping tests without Docker.
 .\gradlew.bat :server:authenticationTest
 ```
 
@@ -120,9 +120,8 @@ Grant only these delegated Microsoft Graph permissions to the Entra app registra
 `ChannelMessage.Read.All` is intentionally deferred until the initial integrations have been verified.
 
 The server uses OAuth's on-behalf-of flow to call Microsoft Graph with the signed-in user's delegated
-authority. It never uses application permissions. If Entra reports missing or declined consent, the server
-returns a consent-required error containing this exact permission set; it does not silently request a
-broader permission.
+authority. It never uses application permissions. The token provider propagates Azure Identity
+authentication errors without consent-specific translation.
 
 ## Notes
 

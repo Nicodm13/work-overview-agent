@@ -44,12 +44,11 @@ tasks.withType(Test).configureEach {
 
 tasks.register('authenticationTest', Test) {
     group = 'verification'
-    description = 'Runs local HTTP JWT, tenant-scoping, and Microsoft Graph consent tests without Docker.'
+    description = 'Runs local HTTP JWT and tenant-scoping tests without Docker.'
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
     include 'dk/school/workoverviewagent/config/McpSecurityHttpTest.class'
     include 'dk/school/workoverviewagent/user/UserProviderTest.class'
-    include 'dk/school/workoverviewagent/graph/GraphConsentErrorClassifierTest.class'
     useJUnitPlatform()
 }
 
