@@ -20,7 +20,13 @@ With the local TLS configuration below, the MCP server runs on:
 
 - `https://localhost:8080/mcp`
 
-You can also run the project from IntelliJ using the normal Run button.
+You can also run the project from IntelliJ using `Start MCP Server` for live Microsoft 365 data,
+or `Start MCP Server - Mocked` for the deterministic sample data. Both configurations keep the
+Entra-authenticated MCP endpoint; only the source adapters change. Start the database first.
+
+From the command line, plain `:server:bootRun` and `:server:bootRunGraph` use live Microsoft Graph
+sources. Only `:server:bootRunMocked` selects the mock adapters. Automated tests that need sample
+data select mock mode explicitly.
 
 ## Local database
 
@@ -55,11 +61,24 @@ repository:
 - `Docker - Reset Database`
 - `Docker - Delete Database`
 - `Start MCP Server`
+- `Start MCP Server - Mocked`
 - `Run Tests`
 
 Run `Docker - Start Database` before `Start MCP Server`. The old generic `Application` run
-configuration is not shared; use `Start MCP Server` for the Spring Boot MCP server. Use `Run Tests`
-to execute the full Gradle test suite from IntelliJ.
+configuration is not shared. Use `Run Tests` to execute the full Gradle test suite from IntelliJ.
+
+The live source mode calls Microsoft Graph using the signed-in user's delegated token. It reads
+Outlook messages, default-calendar events, Teams chats, and accessible OneNote pages. It does not
+read Teams channel posts or meeting transcripts. OneNote pages are returned as potential meeting
+notes; the client decides which are relevant. Graph permissions and consent must be configured for
+the selected sources, and Graph failures are reported rather than replaced with mock results.
+
+To smoke-test live data locally, start Docker Desktop and run `Docker - Start Database`, then use
+`Start MCP Server`. Sign in through the installed MCP client and call `get_review` for a short
+interval, initially selecting one source type such as `OUTLOOK`. Repeat with `CALENDAR`, `TEAMS`,
+and `MEETING_NOTES` as the corresponding delegated permissions become available. An empty result
+means no matching source items were returned; it does not prove the user has no outstanding work.
+Use `Start MCP Server - Mocked` to demonstrate the same tools with repeatable sample data.
 
 ## Connect Codex as an MCP client
 
