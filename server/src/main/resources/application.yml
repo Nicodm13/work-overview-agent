@@ -2,6 +2,11 @@ spring:
     application:
         name: work-overview-agent
 
+    config:
+        import:
+            - optional:file:./.env[.properties]
+            - optional:file:./server/.env[.properties]
+
     ai:
         mcp:
             server:
@@ -20,5 +25,27 @@ spring:
     flyway:
         enabled: true
 
+work-overview:
+    security:
+        enabled: ${WORK_OVERVIEW_SECURITY_ENABLED:true}
+        issuer-uri: ${WORK_OVERVIEW_ENTRA_ISSUER_URI:}
+        audience: ${WORK_OVERVIEW_ENTRA_AUDIENCE:}
+        scope: ${WORK_OVERVIEW_ENTRA_SCOPE:}
+        tenant-id: ${WORK_OVERVIEW_ENTRA_TENANT_ID:}
+        resource-uri: ${WORK_OVERVIEW_MCP_RESOURCE_URI:}
+
+    graph:
+        authentication:
+            client-id: ${WORK_OVERVIEW_ENTRA_CLIENT_ID:}
+            client-secret: ${WORK_OVERVIEW_ENTRA_CLIENT_SECRET:}
+            certificate-path: ${WORK_OVERVIEW_ENTRA_CERTIFICATE_PATH:}
+            certificate-password: ${WORK_OVERVIEW_ENTRA_CERTIFICATE_PASSWORD:}
+
 server:
-    port: 8080
+    port: ${SERVER_PORT:8080}
+    address: ${SERVER_ADDRESS:127.0.0.1}
+    ssl:
+        enabled: ${WORK_OVERVIEW_SERVER_SSL_ENABLED:false}
+        key-store: ${WORK_OVERVIEW_SERVER_SSL_KEY_STORE:}
+        key-store-password: ${WORK_OVERVIEW_SERVER_SSL_KEY_STORE_PASSWORD:}
+        key-store-type: PKCS12

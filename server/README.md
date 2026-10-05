@@ -16,9 +16,9 @@ Start the application from the repository root:
 .\gradlew.bat :server:bootRun
 ```
 
-The MCP server runs on:
+With the local TLS configuration below, the MCP server runs on:
 
-- `http://localhost:8080/mcp`
+- `https://localhost:8080/mcp`
 
 You can also run the project from IntelliJ using the normal Run button.
 
@@ -63,21 +63,23 @@ to execute the full Gradle test suite from IntelliJ.
 
 ## Connect Codex as an MCP client
 
-Add the server to Codex CLI:
+The default server configuration requires an Entra bearer token. Configure the backend `.env` file
+below, then register and sign in through the client installer:
 
-```bash
-codex mcp add work-overview-agent --url http://localhost:8080/mcp
-codex mcp list
+```powershell
+cd client
+./install.ps1
 ```
 
-If the server is registered correctly, it will appear in the MCP list and can be used from Codex sessions.
+Do not expose the server without the Entra JWT configuration described below. The local
+configuration binds only to `127.0.0.1`.
 
 ## Use the MCP Inspector
 
 Start the application first, then connect the inspector to the local MCP endpoint:
 
 ```bash
-npx @modelcontextprotocol/inspector http://localhost:8080/mcp
+npx @modelcontextprotocol/inspector https://localhost:8080/mcp
 ```
 
 Open the inspector in your browser and confirm that the server responds and exposes its tools.
@@ -87,12 +89,74 @@ Open the inspector in your browser and confirm that the server responds and expo
 ```powershell
 .\gradlew.bat :server:test
 .\gradlew.bat :server:build
+
+# Run the local JWT and tenant-scoping tests without Docker.
+.\gradlew.bat :server:authenticationTest
 ```
+
+## Microsoft Entra and Microsoft 365 configuration
+
+The MCP endpoint is a stateless OAuth 2.0 resource server. It validates Entra JWT signature, issuer,
+audience, expiry, and tenant before tools can access user-scoped state. The user identity stored by the
+server is the stable `<tenant-id>:<object-id>` pair from the token's `tid` and `oid` claims.
+
+Register the MCP server as a single-tenant confidential application in Microsoft Entra ID. Expose an API
+scope for the MCP client, then configure the server with the expected token values and one client
+credential:
+
+For v2 access tokens, set `WORK_OVERVIEW_ENTRA_AUDIENCE` to the app's client ID (a GUID) and
+`WORK_OVERVIEW_ENTRA_SCOPE` to the full exposed scope URI, such as
+`https://localhost:8080/mcp/access_as_user` for this local setup. The MCP resource URI and client
+URL must both be `https://localhost:8080/mcp`. Add that exact URL to the Entra app registration's
+Application ID URIs under **Expose an API** (or to `identifierUris` in its manifest). Keep the
+existing `api://<app-client-id>` URI if other clients still use it. This Entra change must be made
+manually; the project scripts do not modify Azure.
+
+Before starting the server locally, generate its self-signed development certificate:
+
+```powershell
+.\server\scripts\create-local-tls.ps1
+```
+
+The script creates `server/.local-tls/localhost.p12` and exports
+`server/.local-tls/localhost.cer`. Both are ignored by Git. The example `.env` uses the generated
+keystore and a development-only password; do not reuse this certificate or password for deployment.
+To let Codex connect without a certificate error, inspect and trust the generated certificate in
+your **Current User** Windows root store:
+
+```powershell
+certutil -dump .\server\.local-tls\localhost.cer
+Import-Certificate -FilePath .\server\.local-tls\localhost.cer -CertStoreLocation Cert:\CurrentUser\Root
+```
+
+Trust only the certificate you generated locally. Remove it from the Current User root store when
+you no longer use this development setup. If you regenerate it, trust the new certificate and
+remove the old one.
+
+Copy `server/.env.example` to `server/.env` and fill in the values. `server/.env` is loaded automatically
+when the application starts from either the repository root or the `server` directory, and is ignored by Git.
+It must never be copied into `client/`.
+
+Use exactly one backend credential. A client secret is appropriate for local development; prefer a
+certificate in a deployed environment.
+
+Grant only these delegated Microsoft Graph permissions to the Entra app registration:
+
+- `Mail.Read` for Outlook email.
+- `Calendars.Read` for calendar events.
+- `Chat.Read` for the signed-in user's Teams chats.
+- `Notes.Read` for an initial OneNote-backed meeting-note adapter.
+
+`ChannelMessage.Read.All` is intentionally deferred until the initial integrations have been verified.
+
+The server uses OAuth's on-behalf-of flow to call Microsoft Graph with the signed-in user's delegated
+authority. It never uses application permissions. The token provider propagates Azure Identity
+authentication errors without consent-specific translation.
 
 ## Notes
 
 - This server currently uses the Spring AI MCP WebMVC starter with Streamable HTTP.
-- The MCP endpoint is intended for local development unless additional security is added.
+- The MCP endpoint requires a correctly configured Entra JWT in the default configuration.
 - Application services are deterministic boundaries. Source adapters fetch and normalize data, Evidence stores source
   references and excerpts, FollowUp stores explicitly requested evidence links, Status stores user-confirmed state, and
   Action stores explicit drafts, approvals, and audit entries. AI reasoning, prioritization, grouping, and semantic
