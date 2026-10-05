@@ -20,6 +20,12 @@ class SourceAdapterLayer implements ISourceAdapterLayer {
 
     SourceAdapterLayer(List<ISourceAdapter> adapters) {
         this.adapters = List.copyOf(adapters);
+        for (var type : SourceType.values()) {
+            var count = this.adapters.stream().filter(adapter -> adapter.sourceType() == type).count();
+            if (count != 1) {
+                throw new IllegalStateException("Expected exactly one source adapter for " + type + ", found " + count);
+            }
+        }
     }
 
     private static EnumSet<SourceType> selectedSourceTypes(SourceRequest request) {

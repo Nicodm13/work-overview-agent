@@ -8,10 +8,12 @@ import dk.school.workoverviewagent.source.contract.SourceResult;
 import dk.school.workoverviewagent.source.filter.SourceItemFilter;
 import dk.school.workoverviewagent.source.mock.MockSourceDataLoader;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.List;
 
 @Component
+@ConditionalOnProperty(prefix = "work-overview.sources", name = "provider", havingValue = "mock")
 class MockCalendarSourceAdapter implements ISourceAdapter {
 
     private final SourceItemFilter sourceItemFilter;
