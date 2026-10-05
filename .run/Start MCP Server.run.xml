@@ -9,7 +9,7 @@
       </option>
       <option name="taskNames">
         <list>
-          <option value=":server:bootRun" />
+          <option value=":server:bootRunGraph" />
         </list>
       </option>
       <option name="vmOptions" />
