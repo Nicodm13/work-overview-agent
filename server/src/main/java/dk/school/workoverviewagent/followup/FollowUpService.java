@@ -78,9 +78,7 @@ class FollowUpService implements IFollowUpService {
     @Override
     public List<FollowUpItem> listFollowUpItems(String ownerId) {
         requiredOwnerId(ownerId);
-        return followUpRepository.findAll(ownerId).stream()
-            .map(item -> getFollowUpItem(ownerId, item.id()))
-            .toList();
+        return followUpRepository.findAll(ownerId);
     }
 
     private void validateTitle(String title) {
