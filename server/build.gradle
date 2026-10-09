@@ -48,6 +48,8 @@ tasks.register('authenticationTest', Test) {
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
     include 'dk/school/workoverviewagent/config/McpSecurityHttpTest.class'
+    include 'dk/school/workoverviewagent/config/McpAuthenticatedToolHttpTest.class'
+    include 'dk/school/workoverviewagent/graph/GraphAccessTokenProviderTest.class'
     include 'dk/school/workoverviewagent/user/UserProviderTest.class'
     useJUnitPlatform()
 }
