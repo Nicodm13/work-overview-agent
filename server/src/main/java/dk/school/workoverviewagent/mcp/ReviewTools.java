@@ -26,10 +26,10 @@ public class ReviewTools {
 
     @McpTool(
         name = "get_review",
-        description = "Review a selected time interval across work sources and return evidence-based overview items. Check coverage and limitations before drawing conclusions.",
+        description = "Review a selected time interval across work sources and return evidence-based overview items. Stores minimized, user-scoped evidence references for later retrieval with get_item_evidence. Check coverage and limitations before drawing conclusions.",
         generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
-            readOnlyHint = true,
+            readOnlyHint = false,
             destructiveHint = false,
             idempotentHint = true))
     public ReviewResponse getReview(
