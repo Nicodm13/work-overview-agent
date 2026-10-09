@@ -8,6 +8,7 @@ import dk.school.workoverviewagent.review.contract.OverviewItem;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.review.contract.ReviewResponse;
 import dk.school.workoverviewagent.source.api.ISourceAdapterLayer;
+import dk.school.workoverviewagent.source.contract.SourceCoverage;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
 import org.springframework.stereotype.Service;
 
@@ -48,7 +49,8 @@ public class ReviewService implements IReviewService {
             request,
             Instant.now(),
             overviewItems,
-            sourceData == null ? List.of() : sourceData.limitations());
+            sourceData == null ? List.of("No source data was returned; review is unavailable.") : sourceData.limitations(),
+            sourceData == null ? SourceCoverage.FAILED : sourceData.coverage());
     }
 
     private OverviewItem toOverviewItem(dk.school.workoverviewagent.model.EvidenceItem evidenceItem) {

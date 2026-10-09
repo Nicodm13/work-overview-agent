@@ -26,7 +26,7 @@ public class ReviewTools {
 
     @McpTool(
         name = "get_review",
-        description = "Review a selected time interval across work sources and return evidence-based overview items.",
+        description = "Review a selected time interval across work sources and return evidence-based overview items. Check coverage and limitations before drawing conclusions.",
         generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = true,
