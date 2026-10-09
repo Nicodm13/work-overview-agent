@@ -61,7 +61,7 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
         followUpService.attachEvidence(new AttachEvidenceToFollowUpRequest(
             OWNER_ID,
             second.id(),
-            reference));
+            reference.id()));
 
         assertThat(followUpService.getFollowUpItem(OWNER_ID, first.id()).evidenceReferences())
             .containsExactly(reference);
@@ -73,6 +73,52 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             "SELECT COUNT(*) FROM EVIDENCE_REFERENCE WHERE OWNER_ID = ?",
             Integer.class,
             OWNER_ID)).isEqualTo(1);
+    }
+
+    @Test
+    void rejectsUnknownEvidenceInsteadOfCreatingItDuringAttachment() {
+        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            OWNER_ID, "Unknown evidence", "", List.of()));
+        var unknown = evidenceReference("evidence-reference-unknown");
+
+        assertThatThrownBy(() -> followUpService.attachEvidence(new AttachEvidenceToFollowUpRequest(
+            OWNER_ID, item.id(), unknown.id())))
+            .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(evidenceService.getEvidence(OWNER_ID, unknown.id()).references()).isEmpty();
+        assertThat(followUpService.getFollowUpItem(OWNER_ID, item.id()).evidenceReferences()).isEmpty();
+    }
+
+    @Test
+    void rejectsEvidenceOwnedByAnotherUser() {
+        var otherOwner = "other-persistence-test-user";
+        var foreign = evidenceReference("evidence-reference-foreign");
+        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            otherOwner, "Other user's follow-up", "", List.of(foreign)));
+        var ownItem = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            OWNER_ID, "Own follow-up", "", List.of()));
+
+        assertThatThrownBy(() -> followUpService.attachEvidence(new AttachEvidenceToFollowUpRequest(
+            OWNER_ID, ownItem.id(), foreign.id())))
+            .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(followUpService.getFollowUpItem(otherOwner, item.id()).evidenceReferences())
+            .containsExactly(foreign);
+        assertThat(followUpService.getFollowUpItem(OWNER_ID, ownItem.id()).evidenceReferences()).isEmpty();
+    }
+
+    @Test
+    void attachmentUsesOnlyStoredEvidenceMetadata() {
+        var original = evidenceReference("evidence-reference-forged");
+        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            OWNER_ID, "Stored evidence", "", List.of(original)));
+        followUpService.attachEvidence(new AttachEvidenceToFollowUpRequest(
+            OWNER_ID, item.id(), original.id()));
+
+        assertThat(evidenceService.getEvidence(OWNER_ID, original.id()).references())
+            .containsExactly(original);
+        assertThat(followUpService.getFollowUpItem(OWNER_ID, item.id()).evidenceReferences())
+            .containsExactly(original);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package dk.school.workoverviewagent.mcp;
 
+import dk.school.workoverviewagent.evidence.repository.IEvidenceRepository;
 import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.FollowUpItem;
 import dk.school.workoverviewagent.model.SourceType;
@@ -22,6 +23,8 @@ public class StatusToolStepDefinitions {
     private FollowUpTools followUpTools;
     @Autowired
     private StatusTools statusTools;
+    @Autowired
+    private IEvidenceRepository evidenceRepository;
 
     private FollowUpItem createdFollowUpItem;
     private UpdateWorkStatusResponse statusUpdateResponse;
@@ -54,9 +57,7 @@ public class StatusToolStepDefinitions {
 
     @When("later email evidence is linked to the created follow-up item")
     public void linkLaterEmailEvidence() {
-        followUpTools.attachEvidenceToFollowUp(
-            createdFollowUpItem.id(),
-            new EvidenceReference(
+        var reference = new EvidenceReference(
                 "later-email-evidence",
                 SourceType.OUTLOOK,
                 "email-later-1",
@@ -64,7 +65,9 @@ public class StatusToolStepDefinitions {
                 "Maja Jensen",
                 "New question about the resolved item",
                 "Can you help with this again?",
-                1.0));
+                1.0);
+        evidenceRepository.save(createdFollowUpItem.ownerId(), reference);
+        followUpTools.attachEvidenceToFollowUp(createdFollowUpItem.id(), reference.id());
     }
 
     @When("the find_new_evidence MCP tool is called")
