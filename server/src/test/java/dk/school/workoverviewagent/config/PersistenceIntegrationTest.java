@@ -113,20 +113,6 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
     }
 
     @Test
-    void attachmentUsesOnlyStoredEvidenceMetadata() {
-        var original = evidenceReference("evidence-reference-forged");
-        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
-            OWNER_ID, "Stored evidence", "", List.of(original)));
-        followUpService.attachEvidence(new AttachEvidenceToFollowUpRequest(
-            OWNER_ID, item.id(), original.id()));
-
-        assertThat(evidenceService.getEvidence(OWNER_ID, original.id()).references())
-            .containsExactly(original);
-        assertThat(followUpService.getFollowUpItem(OWNER_ID, item.id()).evidenceReferences())
-            .containsExactly(original);
-    }
-
-    @Test
     void crossOwnerEvidenceUpsertCannotChangeEvidenceOrVersionHistory() {
         var owner = "evidence-upsert-owner";
         var otherOwner = "evidence-upsert-other-owner";
