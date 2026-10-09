@@ -27,6 +27,7 @@ public class ActionToolStepDefinitions {
     private ExecuteApprovedActionResponse actionExecutionResponse;
     private UpdateActionDraftResponse updatedActionDraftResponse;
     private Throwable failure;
+    private Throwable unapprovedExecutionFailure;
 
     @When("the action tool scenario creates a follow-up item with title {string}")
     public void createFollowUpItem(String title) {
@@ -107,6 +108,22 @@ public class ActionToolStepDefinitions {
             actionDraftResponse.draft().id(),
             true,
             "mcp-tool-content-v1");
+    }
+
+    @When("the execute_approved_action MCP tool attempts to execute the unapproved draft")
+    public void executeUnapprovedDraft() {
+        try {
+            actionTools.executeApprovedAction(actionDraftResponse.draft().id(), true, "mcp-tool-content-v1");
+        } catch (IllegalStateException exception) {
+            unapprovedExecutionFailure = exception;
+        }
+    }
+
+    @Then("the unapproved action cannot be executed")
+    public void unapprovedActionCannotBeExecuted() {
+        assertThat(unapprovedExecutionFailure)
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("draft must be approved with the supplied content before execution");
     }
 
     @When("the update_action_draft MCP tool attempts to edit the approved draft")
