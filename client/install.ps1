@@ -70,14 +70,29 @@ if ([string]::IsNullOrWhiteSpace($OAuthScope)) {
 }
 $OAuthScope = $OAuthScope.Trim()
 
-$scopeOverride = ('mcp_servers.' + $ServerName + '.scopes=' + (ConvertTo-Json -InputObject @($OAuthScope) -Compress)).Replace('"', '\"')
-$arguments = @('mcp', 'add', $ServerName, '--url', $serverUrl, '-c', $scopeOverride)
-if (-not [string]::IsNullOrWhiteSpace($OAuthClientId)) {
-    $arguments += @('--oauth-client-id', $OAuthClientId)
+if ([string]::IsNullOrWhiteSpace($OAuthClientId)) {
+    throw 'WORK_OVERVIEW_ENTRA_CLIENT_ID must be configured before installing the MCP client.'
 }
+$OAuthClientId = $OAuthClientId.Trim()
+
+$serverNameKey = ConvertTo-Json -InputObject $ServerName -Compress
+$serverUrlValue = ConvertTo-Json -InputObject $serverUrl -Compress
+$scopeValue = ConvertTo-Json -InputObject $OAuthScope -Compress
+$clientIdValue = ConvertTo-Json -InputObject $OAuthClientId -Compress
+$serverConfiguration = @"
+[mcp_servers.$serverNameKey]
+url = $serverUrlValue
+scopes = [$scopeValue]
+
+[mcp_servers.$serverNameKey.oauth]
+client_id = $clientIdValue
+"@
 $loginArguments = @('mcp', 'login', $ServerName, '--scopes', $OAuthScope)
 if ($DryRun) {
-    Write-Output ('codex ' + ($arguments -join ' '))
+    Write-Output "codex mcp logout $ServerName (if already registered)"
+    Write-Output "codex mcp remove $ServerName (if already registered)"
+    Write-Output 'Append the following MCP registration to Codex config.toml:'
+    Write-Output $serverConfiguration
     Write-Output ('codex ' + ($loginArguments -join ' '))
     exit 0
 }
@@ -86,25 +101,37 @@ if (-not (Get-Command codex -ErrorAction SilentlyContinue)) {
     throw 'Codex CLI was not found. Install Codex, then run this installer again.'
 }
 
-$existingServerJson = & codex mcp get $ServerName --json 2>$null
+$null = & codex mcp get $ServerName --json 2>$null
 if ($LASTEXITCODE -eq 0) {
-    $existingServer = $existingServerJson | ConvertFrom-Json
-    if ($existingServer.transport.type -ne 'streamable_http' -or $existingServer.transport.url.TrimEnd('/') -ne $serverUrl) {
-        throw "Codex already has '$ServerName' configured with a different endpoint. Review it with 'codex mcp get $ServerName' before reinstalling."
-    }
-    Write-Output "'$ServerName' is already registered at $serverUrl."
-} else {
-    & codex @arguments
+    & codex mcp logout $ServerName *> $null
+    & codex mcp remove $ServerName | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        throw "Codex could not register '$ServerName' (exit code $LASTEXITCODE)."
+        throw "Codex could not remove the previous '$ServerName' registration (exit code $LASTEXITCODE)."
     }
-    Write-Output "Registered '$ServerName' at $serverUrl."
 }
+$codexHome = if ([string]::IsNullOrWhiteSpace($env:CODEX_HOME)) {
+    Join-Path $env:USERPROFILE '.codex'
+} else {
+    $env:CODEX_HOME
+}
+$configPath = Join-Path $codexHome 'config.toml'
+if (-not (Test-Path -LiteralPath $codexHome)) {
+    $null = New-Item -ItemType Directory -Path $codexHome -Force
+}
+[System.IO.File]::AppendAllText(
+    $configPath,
+    [Environment]::NewLine + $serverConfiguration + [Environment]::NewLine,
+    [System.Text.UTF8Encoding]::new($false))
 
-& codex mcp list
+$null = & codex mcp get $ServerName --json 2>$null
+if ($LASTEXITCODE -ne 0) {
+    throw "Codex could not load the new '$ServerName' registration from $configPath."
+}
+Write-Output "Registered '$ServerName' at $serverUrl."
 
 Write-Output "Opening Entra sign-in for '$ServerName'..."
-& codex @loginArguments
+& codex @loginArguments | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "Codex could not sign in to '$ServerName' (exit code $LASTEXITCODE)."
 }
+Write-Output "Signed in to '$ServerName'."
