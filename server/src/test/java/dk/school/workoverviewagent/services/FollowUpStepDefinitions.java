@@ -3,6 +3,7 @@ package dk.school.workoverviewagent.services;
 import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.followup.contract.AttachEvidenceToFollowUpRequest;
 import dk.school.workoverviewagent.followup.contract.CreateFollowUpItemRequest;
+import dk.school.workoverviewagent.evidence.repository.IEvidenceRepository;
 import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.SourceType;
 import io.cucumber.java.en.Given;
@@ -18,6 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class FollowUpStepDefinitions {
     @Autowired
     private IFollowUpService followUpService;
+    @Autowired
+    private IEvidenceRepository evidenceRepository;
     private dk.school.workoverviewagent.model.FollowUpItem followUpItem;
 
     @Given("a follow-up item with Teams evidence")
@@ -30,8 +33,10 @@ public class FollowUpStepDefinitions {
 
     @When("email evidence is attached to the follow-up item")
     public void attachEmailEvidence() {
+        var reference = reference(SourceType.OUTLOOK, "email-1");
+        evidenceRepository.save("user-1", reference);
         followUpItem = followUpService.attachEvidence(new AttachEvidenceToFollowUpRequest(
-            "user-1", followUpItem.id(), reference(SourceType.OUTLOOK, "email-1")));
+            "user-1", followUpItem.id(), reference.id()));
     }
 
     @Then("the follow-up item contains Teams and OUTLOOK evidence")

@@ -1,5 +1,6 @@
 package dk.school.workoverviewagent.mcp;
 
+import dk.school.workoverviewagent.evidence.repository.IEvidenceRepository;
 import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.FollowUpItem;
 import dk.school.workoverviewagent.model.SourceType;
@@ -15,6 +16,8 @@ public class FollowUpToolStepDefinitions {
 
     @Autowired
     private FollowUpTools followUpTools;
+    @Autowired
+    private IEvidenceRepository evidenceRepository;
 
     private FollowUpItem createdFollowUpItem;
     private FollowUpItem retrievedFollowUpItem;
@@ -43,9 +46,7 @@ public class FollowUpToolStepDefinitions {
 
     @When("the attach_evidence_to_follow_up MCP tool is called with Teams evidence")
     public void attachEvidenceToFollowUp() {
-        followUpItemWithEvidence = followUpTools.attachEvidenceToFollowUp(
-            createdFollowUpItem.id(),
-            new EvidenceReference(
+        var reference = new EvidenceReference(
                 "mcp-tool-teams-evidence",
                 SourceType.TEAMS,
                 "teams-mcp-tool-1",
@@ -53,7 +54,10 @@ public class FollowUpToolStepDefinitions {
                 "Maja Jensen",
                 "Test environment clarification",
                 "Can you confirm whether the test environment is ready for use?",
-                1.0));
+                1.0);
+        evidenceRepository.save(createdFollowUpItem.ownerId(), reference);
+        followUpItemWithEvidence = followUpTools.attachEvidenceToFollowUp(
+            createdFollowUpItem.id(), reference.id());
     }
 
     @Then("the follow-up item has {int} explicitly linked evidence reference")

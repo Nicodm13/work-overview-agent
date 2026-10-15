@@ -8,6 +8,7 @@ import dk.school.workoverviewagent.action.contract.ApproveActionRequest;
 import dk.school.workoverviewagent.action.contract.CreateActionDraftRequest;
 import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionRequest;
 import dk.school.workoverviewagent.evidence.api.IEvidenceService;
+import dk.school.workoverviewagent.evidence.repository.IEvidenceRepository;
 import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.followup.contract.AttachEvidenceToFollowUpRequest;
 import dk.school.workoverviewagent.followup.contract.CreateFollowUpItemRequest;
@@ -24,6 +25,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.DataIntegrityViolationException;
 
 class PersistenceIntegrationTest extends CucumberSpringConfiguration {
 
@@ -34,6 +36,9 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
 
     @Autowired
     private IEvidenceService evidenceService;
+
+    @Autowired
+    private IEvidenceRepository evidenceRepository;
 
     @Autowired
     private IStatusService statusService;
@@ -61,7 +66,7 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
         followUpService.attachEvidence(new AttachEvidenceToFollowUpRequest(
             OWNER_ID,
             second.id(),
-            reference));
+            reference.id()));
 
         assertThat(followUpService.getFollowUpItem(OWNER_ID, first.id()).evidenceReferences())
             .containsExactly(reference);
@@ -73,6 +78,119 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             "SELECT COUNT(*) FROM EVIDENCE_REFERENCE WHERE OWNER_ID = ?",
             Integer.class,
             OWNER_ID)).isEqualTo(1);
+    }
+
+    @Test
+    void rejectsUnknownEvidenceInsteadOfCreatingItDuringAttachment() {
+        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            OWNER_ID, "Unknown evidence", "", List.of()));
+        var unknown = evidenceReference("evidence-reference-unknown");
+
+        assertThatThrownBy(() -> followUpService.attachEvidence(new AttachEvidenceToFollowUpRequest(
+            OWNER_ID, item.id(), unknown.id())))
+            .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(evidenceService.getEvidence(OWNER_ID, unknown.id()).references()).isEmpty();
+        assertThat(followUpService.getFollowUpItem(OWNER_ID, item.id()).evidenceReferences()).isEmpty();
+    }
+
+    @Test
+    void rejectsEvidenceOwnedByAnotherUser() {
+        var otherOwner = "other-persistence-test-user";
+        var foreign = evidenceReference("evidence-reference-foreign");
+        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            otherOwner, "Other user's follow-up", "", List.of(foreign)));
+        var ownItem = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            OWNER_ID, "Own follow-up", "", List.of()));
+
+        assertThatThrownBy(() -> followUpService.attachEvidence(new AttachEvidenceToFollowUpRequest(
+            OWNER_ID, ownItem.id(), foreign.id())))
+            .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(followUpService.getFollowUpItem(otherOwner, item.id()).evidenceReferences())
+            .containsExactly(foreign);
+        assertThat(followUpService.getFollowUpItem(OWNER_ID, ownItem.id()).evidenceReferences()).isEmpty();
+    }
+
+    @Test
+    void crossOwnerEvidenceUpsertCannotChangeEvidenceOrVersionHistory() {
+        var owner = "evidence-upsert-owner";
+        var otherOwner = "evidence-upsert-other-owner";
+        var original = evidenceReference("evidence-reference-cross-owner-upsert");
+        evidenceRepository.save(owner, original);
+        var changed = new EvidenceReference(
+            original.id(), original.sourceType(), original.sourceId(), original.timestamp(),
+            original.author(), original.title(), "Other owner's excerpt", original.confidence());
+
+        evidenceRepository.save(otherOwner, changed);
+
+        assertThat(evidenceService.getEvidence(owner, original.id()).references()).containsExactly(original);
+        assertThat(evidenceService.getEvidence(otherOwner, original.id()).references()).isEmpty();
+        assertThat(jdbc.queryForObject(
+            "SELECT VERSION FROM EVIDENCE_REFERENCE WHERE ID = ?", Integer.class, original.id())).isZero();
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM EVIDENCE_REFERENCE_VERSION WHERE EVIDENCE_REFERENCE_ID = ?",
+            Integer.class, original.id())).isEqualTo(1);
+    }
+
+    @Test
+    void databaseRejectsCrossOwnerRelationships() {
+        var owner = "relationship-owner";
+        var otherOwner = "relationship-other-owner";
+        var reference = evidenceReference("evidence-reference-cross-owner-relationship");
+        var foreignReference = evidenceReference("evidence-reference-foreign-relationship");
+        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            owner, "Owner's item", "", List.of(reference)));
+        evidenceRepository.save(otherOwner, foreignReference);
+        var draftId = "cross-owner-relationship-draft";
+
+        jdbc.update("""
+            INSERT INTO WORK_STATUS_RECORD
+                (ID, OWNER_ID, FOLLOW_UP_ITEM_ID, STATUS, REASON, STATUS_SOURCE,
+                 UPDATED_AT, CREATED, CREATED_BY, CHANGED, CHANGED_BY, VERSION)
+            VALUES (?, ?, ?, 'OPEN', '', 'USER_CONFIRMED', CURRENT_TIMESTAMP,
+                    CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, ?, 0)
+            """, "cross-owner-relationship-status", owner, item.id(), owner, owner);
+        jdbc.update("""
+            INSERT INTO ACTION_DRAFT
+                (ID, OWNER_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, RECIPIENTS, AGENDA,
+                 CREATED, CREATED_BY, CHANGED, CHANGED_BY, VERSION)
+            VALUES (?, ?, ?, 'EMAIL', '', '', CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, ?, 0)
+            """, draftId, owner, item.id(), owner, owner);
+        jdbc.update("""
+            INSERT INTO ACTION_STATE
+                (OWNER_ID, DRAFT_ID, STATUS, UPDATED_AT)
+            VALUES (?, ?, 'DRAFT', CURRENT_TIMESTAMP)
+            """, owner, draftId);
+        jdbc.update("""
+            INSERT INTO AUDIT_LOG_ENTRY
+                (ID, OWNER_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, OCCURRED_AT,
+                 APPROVAL_STATUS, APPROVED_CONTENT_REFERENCE,
+                 CREATED, CREATED_BY, CHANGED, CHANGED_BY, VERSION)
+            VALUES (?, ?, ?, 'EMAIL', CURRENT_TIMESTAMP, 'APPROVED', 'content',
+                    CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, ?, 0)
+            """, "cross-owner-relationship-audit", owner, item.id(), owner, owner);
+
+        assertCrossOwnerUpdateRejected("FOLLOW_UP_EVIDENCE_REFERENCE", "FOLLOW_UP_ITEM_ID", item.id(), otherOwner);
+        assertThatThrownBy(() -> jdbc.update("""
+            UPDATE FOLLOW_UP_EVIDENCE_REFERENCE
+            SET EVIDENCE_REFERENCE_ID = ?
+            WHERE OWNER_ID = ? AND FOLLOW_UP_ITEM_ID = ? AND EVIDENCE_REFERENCE_ID = ?
+            """, foreignReference.id(), owner, item.id(), reference.id()))
+            .isInstanceOf(DataIntegrityViolationException.class);
+        assertCrossOwnerUpdateRejected("WORK_STATUS_RECORD", "ID", "cross-owner-relationship-status", otherOwner);
+        assertCrossOwnerUpdateRejected("ACTION_DRAFT", "ID", draftId, otherOwner);
+        assertCrossOwnerUpdateRejected("ACTION_STATE", "DRAFT_ID", draftId, otherOwner);
+        assertCrossOwnerUpdateRejected("AUDIT_LOG_ENTRY", "ID", "cross-owner-relationship-audit", otherOwner);
+        assertCrossOwnerUpdateRejected("EVIDENCE_REFERENCE_VERSION", "EVIDENCE_REFERENCE_ID", reference.id(), otherOwner);
+    }
+
+    private void assertCrossOwnerUpdateRejected(
+        String table, String idColumn, String id, String otherOwner) {
+        assertThatThrownBy(() -> jdbc.update(
+            "UPDATE " + table + " SET OWNER_ID = ? WHERE " + idColumn + " = ?",
+            otherOwner, id))
+            .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

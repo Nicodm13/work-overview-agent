@@ -61,22 +61,24 @@ class FollowUpService implements IFollowUpService {
     @Transactional
     public FollowUpItem attachEvidence(AttachEvidenceToFollowUpRequest request) {
         Objects.requireNonNull(request, "request must not be null");
-        Objects.requireNonNull(request.evidenceReference(), "evidenceReference must not be null");
+        if (request.evidenceReferenceId() == null || request.evidenceReferenceId().isBlank()) {
+            throw new IllegalArgumentException("evidenceReferenceId must not be blank");
+        }
         var item = getFollowUpItem(request.ownerId(), request.followUpItemId());
-        evidenceRepository.save(item.ownerId(), request.evidenceReference());
+        var reference = evidenceRepository.findById(item.ownerId(), request.evidenceReferenceId())
+            .orElseThrow(() -> new IllegalArgumentException(
+                "evidence reference not found: " + request.evidenceReferenceId()));
         followUpRepository.linkEvidenceReference(
             item.ownerId(),
             item.id(),
-            request.evidenceReference().id());
+            reference.id());
         return getFollowUpItem(item.ownerId(), item.id());
     }
 
     @Override
     public List<FollowUpItem> listFollowUpItems(String ownerId) {
         requiredOwnerId(ownerId);
-        return followUpRepository.findAll(ownerId).stream()
-            .map(item -> getFollowUpItem(ownerId, item.id()))
-            .toList();
+        return followUpRepository.findAll(ownerId);
     }
 
     private void validateTitle(String title) {

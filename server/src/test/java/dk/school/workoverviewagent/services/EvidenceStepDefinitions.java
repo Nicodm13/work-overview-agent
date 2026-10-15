@@ -6,6 +6,7 @@ import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.review.contract.ReviewPurpose;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.contract.SourceData;
+import dk.school.workoverviewagent.source.contract.SourceCoverage;
 import dk.school.workoverviewagent.source.contract.SourceItem;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -39,7 +40,8 @@ public class EvidenceStepDefinitions {
             Instant.parse("2026-09-04T23:59:59Z"),
             List.of(),
             ReviewPurpose.DAILY_OVERVIEW);
-        evidenceItems = evidenceService.captureEvidence(request, new SourceData(List.of(item), List.of()));
+        evidenceItems = evidenceService.captureEvidence(request,
+            new SourceData(List.of(item), List.of(), SourceCoverage.COMPLETE));
     }
 
     @Then("the evidence is captured with source type {string} and status {string}")

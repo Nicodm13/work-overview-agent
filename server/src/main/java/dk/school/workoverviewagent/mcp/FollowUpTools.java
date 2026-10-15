@@ -3,7 +3,6 @@ package dk.school.workoverviewagent.mcp;
 import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.followup.contract.AttachEvidenceToFollowUpRequest;
 import dk.school.workoverviewagent.followup.contract.CreateFollowUpItemRequest;
-import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.FollowUpItem;
 import dk.school.workoverviewagent.user.IUserProvider;
 import org.springframework.ai.mcp.annotation.McpTool;
@@ -80,11 +79,11 @@ public class FollowUpTools {
     public FollowUpItem attachEvidenceToFollowUp(
         @McpToolParam(description = "ID of the follow-up item that should receive the evidence link.", required = true)
         String followUpItemId,
-        @McpToolParam(description = "Selected minimized source reference to link explicitly.", required = true)
-        EvidenceReference evidenceReference) {
+        @McpToolParam(description = "ID of an existing source evidence reference owned by the signed-in user.", required = true)
+        String evidenceReferenceId) {
         return followUpService.attachEvidence(new AttachEvidenceToFollowUpRequest(
             userProvider.getUserId(),
             followUpItemId,
-            evidenceReference));
+            evidenceReferenceId));
     }
 }
