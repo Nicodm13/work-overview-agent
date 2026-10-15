@@ -3,6 +3,7 @@ package dk.school.workoverviewagent.source.mock;
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.source.contract.SourceItem;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
+@ConditionalOnProperty(prefix = "work-overview.sources", name = "provider", havingValue = "mock")
 public class MockSourceDataLoader {
 
     public List<SourceItem> loadItems(String csvResource, SourceType sourceType) {

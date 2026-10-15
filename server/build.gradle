@@ -24,6 +24,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'com.microsoft.graph:microsoft-graph:6.70.0'
     implementation 'com.azure:azure-identity:1.18.6'
+    implementation 'org.jsoup:jsoup:1.23.2'
+    implementation 'org.apache.poi:poi-ooxml:5.5.1'
     implementation 'org.flywaydb:flyway-database-postgresql'
     runtimeOnly 'org.postgresql:postgresql'
 
@@ -52,6 +54,22 @@ tasks.register('authenticationTest', Test) {
     include 'dk/school/workoverviewagent/graph/GraphAccessTokenProviderTest.class'
     include 'dk/school/workoverviewagent/user/UserProviderTest.class'
     useJUnitPlatform()
+}
+
+tasks.register('bootRunGraph', org.springframework.boot.gradle.tasks.run.BootRun) {
+    group = 'application'
+    description = 'Runs the MCP server with live Microsoft Graph source adapters.'
+    mainClass = 'dk.school.workoverviewagent.Application'
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperty 'work-overview.sources.provider', 'graph'
+}
+
+tasks.register('bootRunMocked', org.springframework.boot.gradle.tasks.run.BootRun) {
+    group = 'application'
+    description = 'Runs the MCP server with deterministic mocked source data.'
+    mainClass = 'dk.school.workoverviewagent.Application'
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperty 'work-overview.sources.provider', 'mock'
 }
 
 def composeFile = layout.projectDirectory.file('compose.yaml').asFile.absolutePath

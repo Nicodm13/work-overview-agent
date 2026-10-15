@@ -29,6 +29,7 @@ public class CucumberSpringConfiguration {
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("work-overview.security.enabled", () -> false);
+        registry.add("work-overview.sources.provider", () -> "mock");
     }
 
     @TestConfiguration(proxyBeanMethods = false)

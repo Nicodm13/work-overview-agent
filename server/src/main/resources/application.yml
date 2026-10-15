@@ -26,6 +26,8 @@ spring:
         enabled: true
 
 work-overview:
+    sources:
+        provider: graph
     security:
         enabled: ${WORK_OVERVIEW_SECURITY_ENABLED:true}
         issuer-uri: ${WORK_OVERVIEW_ENTRA_ISSUER_URI:}
