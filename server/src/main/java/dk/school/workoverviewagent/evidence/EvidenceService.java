@@ -6,6 +6,7 @@ import dk.school.workoverviewagent.evidence.repository.IEvidenceRepository;
 import dk.school.workoverviewagent.model.EvidenceItem;
 import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.EvidenceStatus;
+import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.contract.SourceData;
 import dk.school.workoverviewagent.source.contract.SourceItem;
@@ -83,6 +84,9 @@ class EvidenceService implements IEvidenceService {
     }
 
     private String evidenceSummary(SourceItem sourceItem) {
+        if (sourceItem.sourceType() == SourceType.MEETING_NOTES) {
+            return sourceItem.content() == null ? "" : sourceItem.content();
+        }
         return "Source evidence captured from " + sourceItem.sourceType() + ".";
     }
 

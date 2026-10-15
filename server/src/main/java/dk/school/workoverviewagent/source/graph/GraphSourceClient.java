@@ -91,17 +91,6 @@ final class GraphSourceClient {
             return (Map<String, Object>) body;
         }
 
-        String getHtml(URI uri) {
-            requireGraphUri(uri);
-            var body = restClient.get().uri(uri)
-                .headers(headers -> headers.setBearerAuth(token))
-                .accept(MediaType.TEXT_HTML)
-                .retrieve().body(String.class);
-            if (body == null) {
-                throw new IllegalStateException("Microsoft Graph returned an empty OneNote page");
-            }
-            return body;
-        }
     }
 
     record ListResult(List<Map<String, Object>> items, boolean truncated) {

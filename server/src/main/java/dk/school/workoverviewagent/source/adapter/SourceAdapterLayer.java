@@ -8,6 +8,7 @@ import dk.school.workoverviewagent.source.contract.SourceCoverage;
 import dk.school.workoverviewagent.source.contract.SourceItem;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -60,7 +61,7 @@ class SourceAdapterLayer implements ISourceAdapterLayer {
                 limitations.addAll(result.limitations());
                 successfulSources++;
             } catch (RuntimeException exception) {
-                limitations.add(sourceType + " source could not be loaded; its results are unavailable.");
+                limitations.add(failureLimitation(sourceType, exception));
             }
         }
 
@@ -75,5 +76,27 @@ class SourceAdapterLayer implements ISourceAdapterLayer {
             : limitations.isEmpty() ? SourceCoverage.COMPLETE : SourceCoverage.PARTIAL;
 
         return new SourceData(items, limitations, coverage);
+    }
+
+    private static String failureLimitation(SourceType sourceType, RuntimeException exception) {
+        var graphDeniedAccess = false;
+        var cause = (Throwable) exception;
+        for (var depth = 0; cause != null && depth < 10; depth++, cause = cause.getCause()) {
+            if (cause.getMessage() != null && cause.getMessage().contains("AADSTS65001")) {
+                return sourceType + " source requires Microsoft Graph consent. Ask a tenant administrator to review and grant the app's delegated Graph permissions.";
+            }
+            if (cause instanceof RestClientResponseException response && response.getStatusCode().value() == 403) {
+                graphDeniedAccess = true;
+            }
+        }
+        if (graphDeniedAccess) {
+            return switch (sourceType) {
+                case OUTLOOK -> "OUTLOOK source was denied by Microsoft Graph. Check Mail.Read delegated permission and consent, and the signed-in account's mailbox access.";
+                case CALENDAR -> "CALENDAR source was denied by Microsoft Graph. Check Calendars.Read delegated permission and consent, and the signed-in account's calendar access.";
+                case TEAMS -> "TEAMS source was denied by Microsoft Graph. Check Chat.Read delegated permission and consent, and the signed-in account's chat access.";
+                case MEETING_NOTES -> "MEETING_NOTES source was denied by Microsoft Graph. Check Mail.Read delegated permission and consent, and the signed-in account's mailbox access.";
+            };
+        }
+        return sourceType + " source could not be loaded; its results are unavailable.";
     }
 }

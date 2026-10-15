@@ -3,13 +3,17 @@ package dk.school.workoverviewagent.source.graph;
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
 import dk.school.workoverviewagent.source.filter.SourceItemFilter;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import java.net.URI;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -105,24 +109,41 @@ class GraphSourceAdaptersTest {
     }
 
     @Test
-    void loadsOneNotePageContentOnlyForPagesInsideInterval() {
-        expectJson("/me/onenote/pages", """
+    void loadsMinutesFromDocxMailAttachmentsWithinInterval() throws IOException {
+        expectJson("/me/messages", """
             {"value":[
-              {"id":"page-a","title":"Meeting notes","lastModifiedDateTime":"2026-10-03T14:00:00Z",
-               "links":{"oneNoteWebUrl":{"href":"https://www.onenote.com/page-a"}}},
-              {"id":"page-old","title":"Old notes","lastModifiedDateTime":"2026-09-29T14:00:00Z"}]}
+              {"id":"mail-a","subject":"Minutes of Meeting","receivedDateTime":"2026-10-03T14:00:00Z",
+               "hasAttachments":true,"from":{"emailAddress":{"name":"Cortex Minutes of Meeting","address":"cortex@example.com"}},
+               "webLink":"https://outlook.office.com/mail/mail-a"},
+              {"id":"mail-old","subject":"Old minutes","receivedDateTime":"2026-09-29T14:00:00Z",
+               "hasAttachments":true}]}
             """);
-        server.expect(requestTo(startsWith(ROOT + "/me/onenote/pages/page-a/content")))
-            .andExpect(header("Authorization", "Bearer graph-token"))
-            .andRespond(withSuccess("<html><body><p>Decision: ship prototype</p></body></html>", MediaType.TEXT_HTML));
+        expectJson("/me/messages/mail-a/attachments", """
+            {"value":[{"id":"attachment-a","name":"Minutes.docx","size":1000,
+              "@odata.type":"#microsoft.graph.fileAttachment"},
+              {"id":"attachment-pdf","name":"Slides.pdf","size":1000}]}
+            """);
+        expectJson("/me/messages/mail-a/attachments/attachment-a", """
+            {"@odata.type":"#microsoft.graph.fileAttachment","contentBytes":"%s"}
+            """.formatted(docx("Decision: ship prototype")));
 
         var result = new GraphMeetingNotesSourceAdapter(graph, filter).load(request);
 
         assertThat(result.items()).hasSize(1);
         assertThat(result.items().getFirst().content()).isEqualTo("Decision: ship prototype");
-        assertThat(result.items().getFirst().attributes()).containsEntry("webLink", "https://www.onenote.com/page-a");
-        assertThat(result.limitations()).anyMatch(text -> text.contains("OneNote"));
+        assertThat(result.items().getFirst().attributes()).containsEntry("webLink", "https://outlook.office.com/mail/mail-a");
+        assertThat(result.items().getFirst().attributes()).containsEntry("attachmentName", "Minutes.docx");
+        assertThat(result.items().getFirst().senderOrOrganizer()).isEqualTo("cortex@example.com");
+        assertThat(result.limitations()).isEmpty();
         server.verify();
+    }
+
+    private String docx(String content) throws IOException {
+        try (var document = new XWPFDocument(); var bytes = new ByteArrayOutputStream()) {
+            document.createParagraph().createRun().setText(content);
+            document.write(bytes);
+            return Base64.getEncoder().encodeToString(bytes.toByteArray());
+        }
     }
 
     @Test

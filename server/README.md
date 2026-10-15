@@ -68,16 +68,18 @@ Run `Docker - Start Database` before `Start MCP Server`. The old generic `Applic
 configuration is not shared. Use `Run Tests` to execute the full Gradle test suite from IntelliJ.
 
 The live source mode calls Microsoft Graph using the signed-in user's delegated token. It reads
-Outlook messages, default-calendar events, Teams chats, and accessible OneNote pages. It does not
-read Teams channel posts or meeting transcripts. OneNote pages are returned as potential meeting
-notes; the client decides which are relevant. Graph permissions and consent must be configured for
-the selected sources, and Graph failures are reported rather than replaced with mock results.
+Outlook messages, default-calendar events, Teams chats, and DOCX attachments on Outlook emails as
+potential meeting minutes. It does not read Teams channel posts, meeting transcripts, or Teams file
+attachments. The client decides which attached documents are actually minutes. Graph permissions
+and consent must be configured for the selected sources, and Graph failures are reported rather
+than replaced with mock results.
 
 To smoke-test live data locally, start Docker Desktop and run `Docker - Start Database`, then use
 `Start MCP Server`. Sign in through the installed MCP client and call `get_review` for a short
 interval, initially selecting one source type such as `OUTLOOK`. Repeat with `CALENDAR`, `TEAMS`,
-and `MEETING_NOTES` as the corresponding delegated permissions become available. An empty result
-means no matching source items were returned; it does not prove the user has no outstanding work.
+and `MEETING_NOTES` as those sources are available. `MEETING_NOTES` reads DOCX email attachments
+using `Mail.Read`. An empty result means no matching source items were returned; it does not prove
+the user has no outstanding work.
 Use `Start MCP Server - Mocked` to demonstrate the same tools with repeatable sample data.
 
 ## Connect Codex as an MCP client
@@ -161,16 +163,20 @@ certificate in a deployed environment.
 
 Grant only these delegated Microsoft Graph permissions to the Entra app registration:
 
-- `Mail.Read` for Outlook email.
+- `Mail.Read` for Outlook email and DOCX meeting-minute attachments.
 - `Calendars.Read` for calendar events.
 - `Chat.Read` for the signed-in user's Teams chats.
-- `Notes.Read` for an initial OneNote-backed meeting-note adapter.
+
+DOCX attachments larger than 5 MB are skipped. Up to 32,000 characters of extracted text are
+returned in the review response for interpretation, while only a short excerpt is persisted as
+evidence. Skipped or truncated attachments are reported as review limitations.
 
 `ChannelMessage.Read.All` is intentionally deferred until the initial integrations have been verified.
 
 The server uses OAuth's on-behalf-of flow to call Microsoft Graph with the signed-in user's delegated
-authority. It never uses application permissions. The token provider propagates Azure Identity
-authentication errors without consent-specific translation.
+authority. It never uses application permissions. When Entra reports missing Graph consent or Graph
+denies source access, the review reports source-specific guidance without exposing token details or
+raw Graph error responses. Other source failures remain generic limitations.
 
 ## Notes
 
