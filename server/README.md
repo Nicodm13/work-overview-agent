@@ -68,11 +68,13 @@ Run `Docker - Start Database` before `Start MCP Server`. The old generic `Applic
 configuration is not shared. Use `Run Tests` to execute the full Gradle test suite from IntelliJ.
 
 The live source mode calls Microsoft Graph using the signed-in user's delegated token. It reads
-Outlook messages, default-calendar events, Teams chats, and DOCX attachments on Outlook emails as
-potential meeting minutes. It does not read Teams channel posts, meeting transcripts, or Teams file
-attachments. The client decides which attached documents are actually minutes. Graph permissions
-and consent must be configured for the selected sources, and Graph failures are reported rather
-than replaced with mock results.
+Outlook messages, default-calendar events, Teams chats, channel posts and returned thread replies
+from teams the user belongs to, and DOCX attachments on Outlook emails as potential meeting
+minutes. It does not read meeting transcripts or Teams file attachments. The client decides which
+attached documents are actually minutes. Graph permissions and consent must be configured for the
+selected sources, and Graph failures are reported rather than replaced with mock results. Channel
+messages are filtered to the requested interval after Graph returns them; pagination limits are
+reported as source limitations.
 
 To smoke-test live data locally, start Docker Desktop and run `Docker - Start Database`, then use
 `Start MCP Server`. Sign in through the installed MCP client and call `get_review` for a short
@@ -166,12 +168,13 @@ Grant only these delegated Microsoft Graph permissions to the Entra app registra
 - `Mail.Read` for Outlook email and DOCX meeting-minute attachments.
 - `Calendars.Read` for calendar events.
 - `Chat.Read` for the signed-in user's Teams chats.
+- `Team.ReadBasic.All` for listing teams the signed-in user belongs to.
+- `Channel.ReadBasic.All` for listing accessible channels in those teams.
+- `ChannelMessage.Read.All` for reading channel posts and thread replies. This delegated permission requires admin consent.
 
 DOCX attachments larger than 5 MB are skipped. Up to 32,000 characters of extracted text are
 returned in the review response for interpretation, while only a short excerpt is persisted as
 evidence. Skipped or truncated attachments are reported as review limitations.
-
-`ChannelMessage.Read.All` is intentionally deferred until the initial integrations have been verified.
 
 The server uses OAuth's on-behalf-of flow to call Microsoft Graph with the signed-in user's delegated
 authority. It never uses application permissions. When Entra reports missing Graph consent or Graph

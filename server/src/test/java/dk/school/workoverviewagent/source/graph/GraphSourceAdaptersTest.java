@@ -5,6 +5,7 @@ import dk.school.workoverviewagent.source.contract.SourceRequest;
 import dk.school.workoverviewagent.source.filter.SourceItemFilter;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -24,6 +25,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 
 class GraphSourceAdaptersTest {
 
@@ -86,7 +88,7 @@ class GraphSourceAdaptersTest {
     }
 
     @Test
-    void loadsTeamsChatMessagesOnlyWithinRequestedInterval() {
+    void loadsTeamsChatsAndChannelPostsWithinRequestedInterval() {
         expectJson("/me/chats", """
             {"value":[{"id":"chat-a","topic":"Project chat"}]}
             """);
@@ -97,14 +99,56 @@ class GraphSourceAdaptersTest {
               {"id":"old-message","createdDateTime":"2026-09-30T12:00:00Z",
                "body":{"content":"Older message"}}]}
             """);
+        expectJson("/me/joinedTeams", """
+            {"value":[{"id":"team-a","displayName":"Project team"}]}
+            """);
+        expectJson("/teams/team-a/channels", """
+            {"value":[{"id":"channel-a","displayName":"General"}]}
+            """);
+        expectJson("/teams/team-a/channels/channel-a/messages", """
+            {"value":[
+              {"id":"post-1","createdDateTime":"2026-10-03T13:00:00Z",
+               "from":{"user":{"displayName":"Nicolai"}},"body":{"content":"<p>Channel <b>update</b></p>"},
+               "webUrl":"https://teams.microsoft.com/l/message/post-1",
+               "replies":[{"id":"reply-1","createdDateTime":"2026-10-03T13:30:00Z",
+                 "from":{"user":{"displayName":"Maja"}},"body":{"content":"Thanks"}}]},
+              {"id":"old-post","createdDateTime":"2026-09-30T13:00:00Z",
+               "body":{"content":"Outside the interval"}}
+            ]}
+            """);
 
         var result = new GraphTeamsSourceAdapter(graph, filter).load(request);
 
-        assertThat(result.items()).hasSize(1);
-        assertThat(result.items().getFirst().id()).isEqualTo("chat-a:message-1");
-        assertThat(result.items().getFirst().content()).isEqualTo("Please check this");
-        assertThat(result.items().getFirst().senderOrOrganizer()).isEqualTo("Maja");
-        assertThat(result.limitations()).anyMatch(text -> text.contains("chats only"));
+        assertThat(result.items()).hasSize(3);
+        assertThat(result.items()).extracting(item -> item.id()).containsExactlyInAnyOrder(
+            "chat-a:message-1", "team-a:channel-a:post-1", "team-a:channel-a:reply-1");
+        var post = result.items().stream().filter(item -> item.id().endsWith("post-1")).findFirst().orElseThrow();
+        assertThat(post.content()).isEqualTo("Channel update");
+        assertThat(post.senderOrOrganizer()).isEqualTo("Nicolai");
+        assertThat(post.title()).isEqualTo("Project team / General");
+        assertThat(post.attributes()).containsEntry("teamId", "team-a")
+            .containsEntry("channelId", "channel-a")
+            .containsEntry("webLink", "https://teams.microsoft.com/l/message/post-1");
+        assertThat(result.limitations()).isEmpty();
+        server.verify();
+    }
+
+    @Test
+    void keepsChatMessagesAndReportsMissingChannelPermission() {
+        expectJson("/me/chats", """
+            {"value":[{"id":"chat-a","topic":"Project chat"}]}
+            """);
+        expectJson("/me/chats/chat-a/messages", """
+            {"value":[{"id":"message-1","createdDateTime":"2026-10-03T12:00:00Z",
+              "body":{"content":"Chat message"}}]}
+            """);
+        server.expect(requestTo(startsWith(ROOT + "/me/joinedTeams")))
+            .andRespond(withStatus(HttpStatus.FORBIDDEN));
+
+        var result = new GraphTeamsSourceAdapter(graph, filter).load(request);
+
+        assertThat(result.items()).extracting(item -> item.id()).containsExactly("chat-a:message-1");
+        assertThat(result.limitations()).anyMatch(text -> text.contains("Team.ReadBasic.All"));
         server.verify();
     }
 
