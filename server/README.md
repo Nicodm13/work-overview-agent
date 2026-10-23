@@ -84,6 +84,11 @@ using `Mail.Read`. An empty result means no matching source items were returned;
 the user has no outstanding work.
 Use `Start MCP Server - Mocked` to demonstrate the same tools with repeatable sample data.
 
+## Microsoft 365 test data
+
+For the canonical mock dataset, Microsoft 365 seed/cleanup scripts, required Graph permissions, and safe execution steps,
+see the **Microsoft 365 test data** section in the repository's [README](../README.md).
+
 ## Connect Codex as an MCP client
 
 The default server configuration requires an Entra bearer token. Configure the backend `.env` file
@@ -163,7 +168,7 @@ It must never be copied into `client/`.
 Use exactly one backend credential. A client secret is appropriate for local development; prefer a
 certificate in a deployed environment.
 
-Grant only these delegated Microsoft Graph permissions to the Entra app registration:
+The MCP source adapters use these delegated Microsoft Graph permissions:
 
 - `Mail.Read` for Outlook email and DOCX meeting-minute attachments.
 - `Calendars.Read` for calendar events.
@@ -180,6 +185,11 @@ The server uses OAuth's on-behalf-of flow to call Microsoft Graph with the signe
 authority. It never uses application permissions. When Entra reports missing Graph consent or Graph
 denies source access, the review reports source-specific guidance without exposing token details or
 raw Graph error responses. Other source failures remain generic limitations.
+
+The test-data seed script is a separate app-only client-credentials flow. It uses the same sandbox app
+registration's client ID and secret, but only for the script's Graph writes and historical Teams import. The MCP server
+continues to call Graph through its delegated on-behalf-of flow. Remove the temporary application permissions and
+admin consent after seeding is complete.
 
 ## Notes
 
