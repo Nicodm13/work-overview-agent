@@ -93,7 +93,7 @@ class SourceAdapterLayer implements ISourceAdapterLayer {
             return switch (sourceType) {
                 case OUTLOOK -> "OUTLOOK source was denied by Microsoft Graph. Check Mail.Read delegated permission and consent, and the signed-in account's mailbox access.";
                 case CALENDAR -> "CALENDAR source was denied by Microsoft Graph. Check Calendars.Read delegated permission and consent, and the signed-in account's calendar access.";
-                case TEAMS -> "TEAMS source was denied by Microsoft Graph. Check Chat.Read delegated permission and consent, and the signed-in account's chat access.";
+                case TEAMS -> "TEAMS source was denied by Microsoft Graph. Check delegated Chat.Read, Team.ReadBasic.All, Channel.ReadBasic.All, and ChannelMessage.Read.All permissions and consent, and the signed-in account's Teams access.";
                 case MEETING_NOTES -> "MEETING_NOTES source was denied by Microsoft Graph. Check Mail.Read delegated permission and consent, and the signed-in account's mailbox access.";
             };
         }
