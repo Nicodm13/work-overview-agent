@@ -43,7 +43,7 @@ These are used by the MCP server when the user signs in. They grant access in th
 | Permission | Used for |
 | --- | --- |
 | `Mail.Read` | Read Outlook email and DOCX meeting-minute attachments. |
-| `Calendars.Read` | Read calendar events. |
+| `Calendars.Read` | Read calendar events and check shared free/busy availability for meeting attendees. |
 | `Chat.Read` | Read the signed-in user's Teams chats. |
 | `User.ReadBasic.All` | Search tenant directory contacts by name or email for email and Teams recipient resolution. |
 | `Mail.Send` | Send an approved email as the signed-in user. |

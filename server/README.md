@@ -176,7 +176,7 @@ certificate in a deployed environment.
 The MCP source adapters and action delivery use delegated Microsoft Graph permissions:
 
 - `Mail.Read` for Outlook email and DOCX meeting-minute attachments.
-- `Calendars.Read` for calendar events.
+- `Calendars.Read` for calendar events and shared free/busy availability with the `find_meeting_times` MCP tool.
 - `Chat.Read` for the signed-in user's Teams chats.
 - `Team.ReadBasic.All` for listing teams the signed-in user belongs to.
 - `Channel.ReadBasic.All` for listing accessible channels in those teams.

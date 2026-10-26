@@ -52,10 +52,20 @@ Suggested next action
    Reply with changes, or give explicit final approval for this exact draft.
 ```
 
-For an unresolved decision requiring multiple clearly identified people, do not invent a draft or
-availability. Instead write: `Suggested next action — Should I prepare a clarification meeting
-for <participants>?` For a finding with no appropriate external action, state the suggested status
-or monitoring action. Never add an empty action section.
+When a meeting is the concrete next action and the required participants are identified, resolve
+their tenant contacts with `find_contacts`, then call `find_meeting_times` for a suitable date range
+and duration. The tool checks the organizer's and invitees' free/busy data. Choose a returned slot
+only when the tool confirms availability for everyone; if calendars could not be checked or no
+shared slot is returned, explain that and ask only for the missing participant or scheduling
+constraint. Do not ask whether to prepare a meeting when the evidence already supports one.
+
+For every proposed meeting, create an editable `MEETING_INVITATION` draft with the selected time,
+resolved invitees, a concise title, and an agenda grounded in the evidence. Show the organizer,
+local date and time with time zone, full attendee list, title, agenda, and draft ID so the user can
+edit missing or unwanted participants and other details before approval. Use
+`update_action_draft` for requested changes. A draft is not an invitation; never approve or execute
+until the user explicitly approves the exact displayed details. For a finding with no appropriate
+external action, state the suggested status or monitoring action. Never add an empty action section.
 
 When the user confirms a result that answers an outstanding question, update the work status and
 still prepare a response draft for the original requester. Resolving tracked work and communicating
