@@ -4,6 +4,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 $expectedTenantId = 'b9ff29bd-1687-4874-83d1-273303aad419'
 $dataRoot = Join-Path $PSScriptRoot '..\src\main\resources\mock-data'
 $configPath = Join-Path $PSScriptRoot '..\.env'
@@ -130,7 +131,7 @@ function Ensure-ChatFullHistory {
         [DateTimeOffset]$EarliestMessage
     )
 
-    $members = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/chats/$ChatId/members?`$select=id,userId,roles,visibleHistoryStartDateTime"
+    $members = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/chats/$ChatId/members"
     foreach ($participant in $Participants) {
         $graphUser = $graphUsers[$participant]
         $member = $members | Where-Object { $_.userId -eq $graphUser.id } | Select-Object -First 1
@@ -156,11 +157,97 @@ function Ensure-ChatFullHistory {
 
 function Get-RecordHash {
     param([object]$Record)
-    $json = ConvertTo-Json -InputObject $Record -Depth 30 -Compress
+    $hashInput = $Record
+    if ($Record.attachments) {
+        $hashInput = @{
+            record = $Record
+            attachmentHashes = @(
+                foreach ($attachment in ($Record.attachments -split '\|')) {
+                    $attachmentPath = Resolve-DatasetAttachment -RelativePath $attachment
+                    "$attachment=$((Get-FileHash -LiteralPath $attachmentPath -Algorithm SHA256).Hash.ToLowerInvariant())"
+                }
+            )
+        }
+    }
+    $json = ConvertTo-Json -InputObject $hashInput -Depth 30 -Compress
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }
     finally { $sha.Dispose() }
+}
+
+function Resolve-DatasetAttachment {
+    param([string]$RelativePath)
+    if ([string]::IsNullOrWhiteSpace($RelativePath)) { throw 'Dataset attachment path must not be blank.' }
+    $rootPath = [System.IO.Path]::GetFullPath($dataRoot).TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    $attachmentPath = [System.IO.Path]::GetFullPath((Join-Path $rootPath $RelativePath))
+    if (-not $attachmentPath.StartsWith($rootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Dataset attachment path must stay within mock-data: $RelativePath"
+    }
+    if (-not (Test-Path -LiteralPath $attachmentPath -PathType Leaf)) {
+        throw "Dataset attachment does not exist: $RelativePath"
+    }
+    return $attachmentPath
+}
+
+function Read-MeetingNoteDocument {
+    param([string]$RelativePath)
+    $documentPath = Resolve-DatasetAttachment -RelativePath $RelativePath
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($documentPath)
+    try {
+        $entry = $archive.GetEntry('word/document.xml')
+        if (-not $entry) { throw "DOCX has no Word document body: $RelativePath" }
+        $reader = [System.IO.StreamReader]::new($entry.Open())
+        try { [xml]$xml = $reader.ReadToEnd() }
+        finally { $reader.Dispose() }
+    }
+    finally { $archive.Dispose() }
+
+    $namespace = [System.Xml.XmlNamespaceManager]::new($xml.NameTable)
+    $namespace.AddNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main')
+    $paragraphs = foreach ($paragraph in $xml.SelectNodes('//w:body/w:p', $namespace)) {
+        (($paragraph.SelectNodes('.//w:t', $namespace) | ForEach-Object { $_.InnerText }) -join '')
+    }
+    $metadata = @{}
+    $notesStarted = $false
+    foreach ($paragraph in $paragraphs) {
+        if ($paragraph -eq 'Meeting notes') { $notesStarted = $true; continue }
+        if ($notesStarted) { continue }
+        if ($paragraph -match '^Meeting:\s*(.+)$') { $metadata.meetingTitle = $Matches[1]; continue }
+        if ($paragraph -match '^Date and time:\s*(.+)$') { $metadata.occurredAt = $Matches[1]; continue }
+        if ($paragraph -match '^Organizer:\s*(.+)$') { $metadata.organizer = $Matches[1]; continue }
+        if ($paragraph -match '^Participants:\s*(.+)$') { $metadata.participants = $Matches[1]; continue }
+        if ($paragraph -match '^Topic:\s*(.+)$') { $metadata.topicId = $Matches[1]; continue }
+    }
+    foreach ($field in @('meetingTitle', 'occurredAt', 'organizer', 'participants', 'topicId')) {
+        if ([string]::IsNullOrWhiteSpace($metadata[$field])) {
+            throw "DOCX meeting note is missing '$field' metadata: $RelativePath"
+        }
+    }
+    $metadata.id = 'notes-' + ([DateTimeOffset]::Parse($metadata.occurredAt)).ToString('yyyy-MM-dd')
+    $metadata.participantNames = @($metadata.participants -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    return [pscustomobject]$metadata
+}
+
+function Get-DatasetEmailAttachments {
+    param([object]$Mail)
+    if ([string]::IsNullOrWhiteSpace($Mail.attachments)) { return @() }
+    $attachments = @(
+        foreach ($relativePath in ($Mail.attachments -split '\|')) {
+            $attachmentPath = Resolve-DatasetAttachment -RelativePath $relativePath
+            $bytes = [System.IO.File]::ReadAllBytes($attachmentPath)
+            if ($bytes.Length -gt 3MB) {
+                throw "Graph simple file attachments must be smaller than 3 MB: $relativePath"
+            }
+            @{
+                '@odata.type' = '#microsoft.graph.fileAttachment'
+                name = [System.IO.Path]::GetFileName($attachmentPath)
+                contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                contentBytes = [Convert]::ToBase64String($bytes)
+            }
+        }
+    )
+    return $attachments
 }
 
 function Normalize-MailBody {
@@ -250,7 +337,27 @@ $script:seedState = Get-SeedState -Path $script:statePath -TenantId $tenantId
 Save-SeedState
 
 $users = Import-Csv -LiteralPath (Join-Path $dataRoot 'users.csv')
-$emails = Import-Csv -LiteralPath (Join-Path $dataRoot 'email.csv')
+$emails = @(Import-Csv -LiteralPath (Join-Path $dataRoot 'email.csv'))
+$meetingNoteDirectory = Join-Path $dataRoot 'meeting-notes'
+$meetingNotes = @(Get-ChildItem -LiteralPath $meetingNoteDirectory -Filter '*.docx' -File | Sort-Object Name)
+if ($meetingNotes.Count -eq 0) { throw "No meeting-note DOCX files found in $meetingNoteDirectory." }
+$meetingNoteEmails = foreach ($noteFile in $meetingNotes) {
+    $attachmentPath = "meeting-notes/$($noteFile.Name)"
+    $note = Read-MeetingNoteDocument -RelativePath $attachmentPath
+    [pscustomobject]@{
+        id = "meeting-note-email-$($note.id)"
+        occurredAt = $note.occurredAt
+        title = "Minutes of Meeting - $($note.meetingTitle)"
+        content = "Hi all,`r`n`r`nAttached are the minutes of our meeting, `"$($note.meetingTitle)`". Please review the decisions and actions relevant to you and let the group know if anything needs correction.`r`n`r`nThanks,`r`n$($note.organizer)"
+        senderOrOrganizer = $note.organizer
+        participants = $note.participantNames -join '|'
+        folder = 'Inbox'
+        importance = 'normal'
+        topicId = $note.topicId
+        attachments = $attachmentPath
+    }
+}
+$emails = @($emails) + @($meetingNoteEmails)
 $events = Import-Csv -LiteralPath (Join-Path $dataRoot 'calendar.csv')
 $messages = Import-Csv -LiteralPath (Join-Path $dataRoot 'teams.csv')
 $conversations = Import-Csv -LiteralPath (Join-Path $dataRoot 'teams-conversations.csv')
@@ -264,7 +371,7 @@ Write-Output "Users: $($users.Count)"
 Write-Output "Team: $($team.displayName), $($team.channels.Count) channels"
 Write-Output "Chats: $($conversations.Count) (one-to-one and group)"
 Write-Output "Historical Teams messages: $($messages.Count)"
-Write-Output "Emails to reconcile: $($emails.Count) (new or corrected messages are sent; unchanged messages are skipped)"
+Write-Output "Emails to reconcile: $($emails.Count) including $($meetingNotes.Count) meeting-minutes emails (new or corrected messages are sent; unchanged messages are skipped)"
 Write-Output "Calendar events to reconcile: $($events.Count); attendees can receive invitations or update notices"
 if (-not $clientId -or -not $clientSecret) { throw 'Set WORK_OVERVIEW_ENTRA_CLIENT_ID and WORK_OVERVIEW_ENTRA_CLIENT_SECRET in server/.env or the process environment.' }
 
@@ -322,33 +429,22 @@ if (-not $teamId) {
 }
 else { Write-Output "Reusing existing project Team: $teamId" }
 
-$existingTeamMembers = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/teams/$teamId/members?`$select=id,userId,displayName"
-$existingTeamMemberIds = @{}
-foreach ($existingTeamMember in $existingTeamMembers) {
-    if ($existingTeamMember.userId) { $existingTeamMemberIds[$existingTeamMember.userId] = $true }
-}
 $membersToCheck = @($users | Where-Object { $_.userPrincipalName -ne $teamOwner.userPrincipalName })
 $memberTotal = $membersToCheck.Count
 $memberIndex = 0
 foreach ($user in $membersToCheck) {
     $memberIndex++
     $graphUserId = $graphUsers[$user.displayName].id
-    if ($existingTeamMemberIds.ContainsKey($graphUserId)) {
-        Write-TaskProgress -Activity 'Reconciling Team members' -Current $memberIndex -Total $memberTotal -Status "Already present | $($user.displayName)"
-        continue
-    }
     $memberBody = @{
         '@odata.type' = '#microsoft.graph.aadUserConversationMember'
         'user@odata.bind' = "https://graph.microsoft.com/v1.0/users('$graphUserId')"
     }
     try {
         Invoke-Graph -Method POST -Uri "https://graph.microsoft.com/v1.0/teams/$teamId/members" -Body $memberBody | Out-Null
-        $existingTeamMemberIds[$graphUserId] = $true
         Write-TaskProgress -Activity 'Reconciling Team members' -Current $memberIndex -Total $memberTotal -Status "Added | $($user.displayName)"
     }
     catch {
         if ($_ -notmatch '(?i)already exists|already a member|duplicate|MemberAlreadyExists') { throw }
-        $existingTeamMemberIds[$graphUserId] = $true
         Write-TaskProgress -Activity 'Reconciling Team members' -Current $memberIndex -Total $memberTotal -Status "Already present | $($user.displayName)"
     }
     Start-Sleep -Seconds 2
@@ -564,13 +660,13 @@ foreach ($mail in $emails) {
         if ($name -ne $mail.senderOrOrganizer) { @{ emailAddress = @{ address = $userByName[$name].userPrincipalName } } }
     }
             $mailboxUpns = if ($saved.participants) { @($saved.participants) } else { @($sender.userPrincipalName) + @($mail.participants -split '\|' | ForEach-Object { $userByName[$_].userPrincipalName }) | Sort-Object -Unique }
-    if ($saved -and $saved.status -eq 'draft' -and $saved.graphId) {
+    if ($saved -and $saved.status -eq 'draft' -and $saved.graphId -and -not $mail.attachments) {
         $draftUri = "https://graph.microsoft.com/v1.0/users/$($sender.userPrincipalName)/messages/$($saved.graphId)"
         $existingDraft = (Invoke-Graph -Method GET -Uri "$($draftUri)?`$select=id,isDraft").Body
         if (-not $existingDraft.isDraft) {
             $script:seedState.emails[$mail.id].status = 'sent'
             Save-SeedState
-            if ($saved.hash -ne $itemHash) { throw "Email $($mail.id) was sent before an interrupted run and its dataset row has since changed. Run Tests - Seed Data again to reconcile the changed item." }
+            if ($saved.hash -ne $itemHash) { throw "Email $($mail.id) was sent before an interrupted run and its dataset row has since changed. Run Microsoft Graph - Seed Data again to reconcile the changed item." }
             $mailIndex++
             Write-TaskProgress -Activity 'Sending emails' -Current $mailIndex -Total $emails.Count -Status "Recovered sent item | $($mail.id)"
             continue
@@ -583,6 +679,27 @@ foreach ($mail in $emails) {
         Save-SeedState
     }
     else {
+        if ($saved -and $saved.status -eq 'draft' -and $saved.graphId -and $mail.attachments) {
+            $draftUri = "https://graph.microsoft.com/v1.0/users/$($sender.userPrincipalName)/messages/$($saved.graphId)"
+            $existingDraft = $null
+            try { $existingDraft = (Invoke-Graph -Method GET -Uri "$($draftUri)?`$select=id,isDraft").Body }
+            catch { if ($_ -notmatch 'HTTP 404') { throw } }
+            if ($existingDraft -and -not $existingDraft.isDraft) {
+                $script:seedState.emails[$mail.id].status = 'sent'
+                Save-SeedState
+                if ($saved.hash -ne $itemHash) { throw "Email $($mail.id) was sent before an interrupted run and its dataset row has since changed. Run Microsoft Graph - Seed Data again to reconcile the changed item." }
+                $mailIndex++
+                Write-TaskProgress -Activity 'Sending emails' -Current $mailIndex -Total $emails.Count -Status "Recovered sent item | $($mail.id)"
+                continue
+            }
+            if ($existingDraft) {
+                try { Invoke-Graph -Method DELETE -Uri $draftUri | Out-Null }
+                catch { if ($_ -notmatch 'HTTP 404') { throw } }
+            }
+            $script:seedState.emails.Remove($mail.id)
+            Save-SeedState
+            $saved = $null
+        }
         if ($saved -and ($saved.status -eq 'sent' -or $saved.status -eq 'replacing')) {
             if (-not $saved.internetMessageId) {
                 $sentCopy = (Invoke-Graph -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$($sender.userPrincipalName)/messages/$($saved.graphId)?`$select=id,internetMessageId").Body
@@ -606,6 +723,8 @@ foreach ($mail in $emails) {
             Write-Output "Removed the prior seeded copies for $($mail.id); recreating the corrected message."
         }
         $draftBody = @{ subject = $mail.title; body = @{ contentType = 'Text'; content = $mail.content }; toRecipients = @($recipients); internetMessageHeaders = @(@{ name = 'X-WorkOverview-Seed'; value = 'atlas-developer-platform-v1' }, @{ name = 'X-WorkOverview-Seed-Id'; value = $mail.id }) }
+        $attachments = @(Get-DatasetEmailAttachments -Mail $mail)
+        if ($attachments.Count -gt 0) { $draftBody.attachments = $attachments }
         $draftMessage = (Invoke-Graph -Method POST -Uri "https://graph.microsoft.com/v1.0/users/$($sender.userPrincipalName)/messages" -Body $draftBody).Body
         $script:seedState.emails[$mail.id] = @{ hash = $itemHash; graphId = $draftMessage.id; status = 'draft'; participants = $mailboxUpns }
         Save-SeedState

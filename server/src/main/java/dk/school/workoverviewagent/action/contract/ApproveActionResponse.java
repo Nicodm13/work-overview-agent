@@ -7,5 +7,6 @@ import java.time.Instant;
 public record ApproveActionResponse(
     ActionDraft draft,
     boolean approved,
-    Instant approvedAt) {
+    Instant approvedAt,
+    String approvalReference) {
 }

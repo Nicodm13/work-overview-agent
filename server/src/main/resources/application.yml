@@ -24,8 +24,17 @@ spring:
                     uncertain, do not invent it; explain the uncertainty or ask the user for the missing detail.
                     Use find_contacts to resolve a named recipient to their tenant email address and Graph identity
                     before drafting; if multiple contacts match, ask the user to choose.
+                    When a meeting is the supported next action, call find_meeting_times after resolving the
+                    attendees. Use a returned shared free slot, then create a MEETING_INVITATION draft with the exact
+                    title, selected start and end, attendee list, and evidence-based agenda. Present the organizer,
+                    local date and time zone, all attendees, and agenda so the user can edit the draft. If availability
+                    is incomplete or no shared slot is found, ask only for the missing constraint or participant.
                     Drafting only stores editable content and never sends or schedules anything. Never approve or
-                    execute a draft without the user's explicit final approval of its exact content and recipients.
+                    execute a draft without first showing the exact recipients and content and obtaining the user's
+                    explicit final approval for that draft. Call approve_action_draft only after that approval, then
+                    execute using the returned approval reference. Report ACCEPTED_BY_GRAPH as accepted by Graph,
+                    SIMULATED as mock-only, OUTCOME_UNKNOWN as requiring source verification, and FAILED as rejected;
+                    never describe an attempted, unknown, or simulated action as sent or scheduled.
                 annotation-scanner:
                     enabled: true
 

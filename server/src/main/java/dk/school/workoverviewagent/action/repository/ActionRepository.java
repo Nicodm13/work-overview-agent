@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 class ActionRepository implements IActionRepository {
@@ -195,11 +196,11 @@ class ActionRepository implements IActionRepository {
     }
 
     @Override
-    public boolean transitionApprovedDraftToExecuted(
+    public boolean claimApprovedDraft(
         String ownerId,
         String draftId,
         String approvedContentReference,
-        Instant executedAt) {
+        Instant claimedAt) {
         return jdbc.update(
             """
                 UPDATE ACTION_STATE
@@ -210,8 +211,8 @@ class ActionRepository implements IActionRepository {
                   AND STATUS = ?
                   AND APPROVED_CONTENT_REFERENCE = ?
                 """,
-            ActionStatus.EXECUTED.name(),
-            Timestamp.from(executedAt),
+            ActionStatus.EXECUTING.name(),
+            Timestamp.from(claimedAt),
             ownerId,
             draftId,
             ActionStatus.APPROVED.name(),
@@ -219,14 +220,63 @@ class ActionRepository implements IActionRepository {
     }
 
     @Override
+    @Transactional
+    public boolean completeExecution(String ownerId, String draftId, AuditLogEntry entry) {
+        var updated = jdbc.update(
+            """
+                UPDATE ACTION_STATE
+                SET STATUS = ?, UPDATED_AT = ?
+                WHERE OWNER_ID = ? AND DRAFT_ID = ? AND STATUS = ? AND APPROVED_CONTENT_REFERENCE = ?
+                """,
+            ActionStatus.EXECUTED.name(),
+            Timestamp.from(entry.timestamp()),
+            ownerId,
+            draftId,
+            ActionStatus.EXECUTING.name(),
+            entry.approvedContentReference());
+        if (updated != 1) {
+            return false;
+        }
+        insertAuditEntry(ownerId, entry);
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean failExecution(String ownerId, String draftId, AuditLogEntry entry) {
+        var updated = jdbc.update(
+            """
+                UPDATE ACTION_STATE
+                SET STATUS = ?, UPDATED_AT = ?
+                WHERE OWNER_ID = ? AND DRAFT_ID = ? AND STATUS = ? AND APPROVED_CONTENT_REFERENCE = ?
+                """,
+            ActionStatus.FAILED.name(),
+            Timestamp.from(entry.timestamp()),
+            ownerId,
+            draftId,
+            ActionStatus.EXECUTING.name(),
+            entry.approvedContentReference());
+        if (updated != 1) {
+            return false;
+        }
+        insertAuditEntry(ownerId, entry);
+        return true;
+    }
+
+    @Override
     public void appendAuditEntry(String ownerId, AuditLogEntry entry) {
+        insertAuditEntry(ownerId, entry);
+    }
+
+    private void insertAuditEntry(String ownerId, AuditLogEntry entry) {
         jdbc.update(
             """
                 INSERT INTO AUDIT_LOG_ENTRY
                     (ID, OWNER_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, OCCURRED_AT,
-                     APPROVAL_STATUS, APPROVED_CONTENT_REFERENCE, CREATED,
+                     APPROVAL_STATUS, APPROVED_CONTENT_REFERENCE, DELIVERY_STATUS,
+                     EXTERNAL_REFERENCE, FAILURE_DETAIL, CREATED,
                      CREATED_BY, CHANGED, CHANGED_BY, VERSION)
-                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?,
                         CURRENT_TIMESTAMP, ?, 0)
                 """,
             entry.id(),
@@ -236,6 +286,9 @@ class ActionRepository implements IActionRepository {
             Timestamp.from(entry.timestamp()),
             entry.approvalStatus(),
             entry.approvedContentReference(),
+            entry.deliveryStatus(),
+            entry.externalReference(),
+            entry.failureDetail(),
             ownerId,
             ownerId);
     }
@@ -245,7 +298,8 @@ class ActionRepository implements IActionRepository {
         return jdbc.query(
             """
                 SELECT ID, OWNER_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, OCCURRED_AT,
-                       APPROVAL_STATUS, APPROVED_CONTENT_REFERENCE
+                       APPROVAL_STATUS, APPROVED_CONTENT_REFERENCE, DELIVERY_STATUS,
+                       EXTERNAL_REFERENCE, FAILURE_DETAIL
                 FROM AUDIT_LOG_ENTRY
                 WHERE OWNER_ID = ?
                 ORDER BY OCCURRED_AT, ID
@@ -278,7 +332,10 @@ class ActionRepository implements IActionRepository {
             resultSet.getString("ACTION_TYPE"),
             resultSet.getTimestamp("OCCURRED_AT").toInstant(),
             resultSet.getString("APPROVAL_STATUS"),
-            resultSet.getString("APPROVED_CONTENT_REFERENCE"));
+            resultSet.getString("APPROVED_CONTENT_REFERENCE"),
+            resultSet.getString("DELIVERY_STATUS"),
+            resultSet.getString("EXTERNAL_REFERENCE"),
+            resultSet.getString("FAILURE_DETAIL"));
     }
 
     private String serialize(List<String> values) {

@@ -106,14 +106,13 @@ public class ActionToolStepDefinitions {
     public void approveActionDraft() {
         actionApprovalResponse = actionTools.approveActionDraft(
             actionDraftResponse.draft().id(),
-            true,
-            "mcp-tool-content-v1");
+            true);
     }
 
     @When("the execute_approved_action MCP tool attempts to execute the unapproved draft")
     public void executeUnapprovedDraft() {
         try {
-            actionTools.executeApprovedAction(actionDraftResponse.draft().id(), true, "mcp-tool-content-v1");
+            actionTools.executeApprovedAction(actionDraftResponse.draft().id(), "unapproved-reference");
         } catch (IllegalStateException exception) {
             unapprovedExecutionFailure = exception;
         }
@@ -123,7 +122,7 @@ public class ActionToolStepDefinitions {
     public void unapprovedActionCannotBeExecuted() {
         assertThat(unapprovedExecutionFailure)
             .isInstanceOf(IllegalStateException.class)
-            .hasMessage("draft must be approved with the supplied content before execution");
+            .hasMessage("draft must be approved for its exact current content before execution");
     }
 
     @When("the update_action_draft MCP tool attempts to edit the approved draft")
@@ -160,8 +159,7 @@ public class ActionToolStepDefinitions {
     public void executeApprovedAction() {
         actionExecutionResponse = actionTools.executeApprovedAction(
             actionDraftResponse.draft().id(),
-            true,
-            "mcp-tool-content-v1");
+            actionApprovalResponse.approvalReference());
     }
 
     @Then("the action execution is audited as approved")
@@ -169,5 +167,6 @@ public class ActionToolStepDefinitions {
         assertThat(actionExecutionResponse.auditLogEntry().followUpItemId())
             .isEqualTo(createdFollowUpItem.id());
         assertThat(actionExecutionResponse.auditLogEntry().approvalStatus()).isEqualTo("APPROVED");
+        assertThat(actionExecutionResponse.auditLogEntry().deliveryStatus()).isEqualTo("SIMULATED");
     }
 }

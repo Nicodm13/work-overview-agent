@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Tests - Seed Data" type="GradleRunConfiguration" factoryName="Gradle">
+  <configuration default="false" name="Microsoft Graph - Clear Data" type="GradleRunConfiguration" factoryName="Gradle">
     <ExternalSystemSettings>
       <option name="executionName" />
       <option name="externalProjectPath" value="$PROJECT_DIR$" />
@@ -9,7 +9,7 @@
       </option>
       <option name="taskNames">
         <list>
-          <option value=":server:seedGraphTestData" />
+          <option value=":server:clearGraphTestData" />
         </list>
       </option>
       <option name="vmOptions" />

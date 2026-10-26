@@ -28,11 +28,15 @@ public interface IActionRepository {
 
     boolean approveDraft(ActionState actionState);
 
-    boolean transitionApprovedDraftToExecuted(
+    boolean claimApprovedDraft(
         String ownerId,
         String draftId,
         String approvedContentReference,
-        Instant executedAt);
+        Instant claimedAt);
+
+    boolean completeExecution(String ownerId, String draftId, AuditLogEntry entry);
+
+    boolean failExecution(String ownerId, String draftId, AuditLogEntry entry);
 
     void appendAuditEntry(String ownerId, AuditLogEntry entry);
 

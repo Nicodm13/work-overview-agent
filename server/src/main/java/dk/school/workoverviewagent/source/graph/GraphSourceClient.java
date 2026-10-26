@@ -95,6 +95,22 @@ final class GraphSourceClient {
             return (Map<String, Object>) body;
         }
 
+        @SuppressWarnings("unchecked")
+        Map<String, Object> postJson(URI uri, Map<String, Object> requestBody) {
+            requireGraphUri(uri);
+            var body = restClient.post().uri(uri)
+                .headers(headers -> headers.setBearerAuth(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .body(requestBody)
+                .retrieve()
+                .body(Map.class);
+            if (body == null) {
+                throw new IllegalStateException("Microsoft Graph returned an empty JSON response");
+            }
+            return (Map<String, Object>) body;
+        }
+
     }
 
     record ListResult(List<Map<String, Object>> items, boolean truncated) {

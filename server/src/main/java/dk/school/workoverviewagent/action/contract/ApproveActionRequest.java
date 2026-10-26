@@ -6,6 +6,5 @@ public record ApproveActionRequest(
     String ownerId,
     String draftId,
     boolean finalApproval,
-    String approvedContentReference,
     Instant approvedAt) {
 }
