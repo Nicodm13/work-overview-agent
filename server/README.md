@@ -62,10 +62,14 @@ repository:
 - `Docker - Delete Database`
 - `Start MCP Server`
 - `Start MCP Server - Mocked`
-- `Run Tests`
+- `Tests - Seed Data`
+- `Tests - Clear Data`
+- `Tests - Run`
 
 Run `Docker - Start Database` before `Start MCP Server`. The old generic `Application` run
-configuration is not shared. Use `Run Tests` to execute the full Gradle test suite from IntelliJ.
+configuration is not shared. Use `Tests - Run` to execute the full Gradle test suite from IntelliJ. The two Microsoft
+365 configurations seed or clear data in the disposable sandbox; `Tests - Clear Data` permanently deletes scoped data
+and associated Team group resources.
 
 The live source mode calls Microsoft Graph using the signed-in user's delegated token. It reads
 Outlook messages, default-calendar events, Teams chats, channel posts and returned thread replies

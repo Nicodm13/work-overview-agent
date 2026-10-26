@@ -72,6 +72,25 @@ tasks.register('bootRunMocked', org.springframework.boot.gradle.tasks.run.BootRu
     systemProperty 'work-overview.sources.provider', 'mock'
 }
 
+def graphTestDataSeedScript = layout.projectDirectory.file('scripts/seed-graph-test-data.ps1').asFile.absolutePath
+def graphTestDataCleanupScript = layout.projectDirectory.file('scripts/remove-graph-test-data.ps1').asFile.absolutePath
+
+tasks.register('seedGraphTestData', Exec) {
+    group = 'microsoft 365 test data'
+    description = 'Seeds Microsoft Graph test data and sends dataset emails and meeting invitations to the sandbox.'
+    commandLine 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', graphTestDataSeedScript,
+        '-ConfirmSandboxTenant'
+}
+
+tasks.register('clearGraphTestData', Exec) {
+    group = 'microsoft 365 test data'
+    description = 'Deletes mailbox, calendar, chat, and Team data in the disposable Microsoft 365 sandbox.'
+    commandLine 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', graphTestDataCleanupScript,
+        '-Apply', '-RemoveAllMailboxAndCalendarItems', '-ConfirmCalendarCancellations',
+        '-RemoveAllChatsForListedUsers', '-ConfirmChatDeletion', '-RemoveAllTeamsAndChannelPosts',
+        '-ConfirmTeamAndGroupResourceDeletion', '-ConfirmSandboxTenant'
+}
+
 def composeFile = layout.projectDirectory.file('compose.yaml').asFile.absolutePath
 
 tasks.register('dockerStartDatabase', Exec) {
