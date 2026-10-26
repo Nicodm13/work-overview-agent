@@ -25,7 +25,7 @@ public class MeetingAvailabilityTools {
 
     @McpTool(
         name = "find_meeting_times",
-        description = "Check the signed-in user's and named attendees' calendar free/busy data and return up to five shared free slots. Use find_contacts first to resolve people from evidence. Availability details are not returned, only candidate times. This tool never creates or sends an invitation. When proposing a meeting, create an editable MEETING_INVITATION draft containing the selected slot, all invitees, title, and agenda, then show those details to the user for edits and explicit approval.",
+        description = "Use proactively when an actionable finding needs a joint decision or clarification from several evidence-supported people; do not ask the user to provide a time when calendar lookup can find one. Resolve named participants from the evidence with find_contacts, excluding anyone not supported by the source. Check the signed-in user's and attendees' free/busy data and return up to five shared free slots; availability details are not returned. Prefer a 30-minute slot within the next two weeks, or before an evidence-based deadline. This tool never creates or sends an invitation. After choosing a suitable slot, create an editable MEETING_INVITATION draft with title, selected time, all supported invitees, and an agenda based on the open issue, then show those details for edits and explicit approval.",
         generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = true,

@@ -33,7 +33,7 @@ public class ActionTools {
 
     @McpTool(
         name = "draft_follow_up_action",
-        description = "Prepare and store an editable action draft for a follow-up item. Use this during a work review whenever the evidence supports a concrete Teams chat message, email, or meeting invitation; do not wait for the user to separately ask for a draft. Use only supported recipients and content. Preparing a draft does not send or schedule anything and is not user approval. Meeting attendees receive an invitation only after approved execution.",
+        description = "Prepare and store an editable action draft for an actionable finding that needs information, a response, coordination, or notification from other people. During every work review, choose and create a suitable draft without waiting for the user to ask. Match the channel to the source: EMAIL for an email-based request, TEAMS_MESSAGE for a Teams-based request; for mixed sources use the latest direct request. For joint clarification or a shared decision, first resolve evidence-supported participants with find_contacts and check availability with find_meeting_times, then draft a MEETING_INVITATION with a useful title, selected time, attendees, and agenda. If the owner is unknown, draft to known, evidence-supported stakeholders asking who owns it; do not invent recipients or omit a draft because the owner is unknown. Include source context in the draft. Preparing a draft never sends or schedules anything and is not user approval. Meeting attendees receive an invitation only after explicit approved execution.",
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
             destructiveHint = false,
