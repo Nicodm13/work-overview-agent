@@ -73,12 +73,13 @@ and associated Team group resources.
 
 The live source mode calls Microsoft Graph using the signed-in user's delegated token. It reads
 Outlook messages, default-calendar events, Teams chats, channel posts and returned thread replies
-from teams the user belongs to, and DOCX attachments on Outlook emails as potential meeting
-minutes. It does not read meeting transcripts or Teams file attachments. The client decides which
-attached documents are actually minutes. Graph permissions and consent must be configured for the
-selected sources, and Graph failures are reported rather than replaced with mock results. Channel
-messages are filtered to the requested interval after Graph returns them; pagination limits are
-reported as source limitations.
+from teams the user belongs to, DOCX attachments on Outlook emails as potential meeting minutes,
+and tenant-directory contacts for resolving email and Teams recipients. It does not read meeting
+transcripts or Teams file attachments. The client decides which attached documents are actually
+minutes. Graph permissions and consent must be configured for the selected sources, and Graph
+failures are reported rather than replaced with mock results. Channel messages are filtered to the
+requested interval after Graph returns them; pagination limits are reported as source limitations.
+Mock mode resolves contacts from the shared `mock-data/users.csv` dataset.
 
 To smoke-test live data locally, start Docker Desktop and run `Docker - Start Database`, then use
 `Start MCP Server`. Sign in through the installed MCP client and call `get_review` for a short

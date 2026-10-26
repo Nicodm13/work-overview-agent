@@ -22,6 +22,8 @@ spring:
                     the final overview. Use the original communication channel and a recipient explicitly supported by
                     evidence. Do not silently omit a suitable draft. If a recipient, channel, or material content is
                     uncertain, do not invent it; explain the uncertainty or ask the user for the missing detail.
+                    Use find_contacts to resolve a named recipient to their tenant email address and Graph identity
+                    before drafting; if multiple contacts match, ask the user to choose.
                     Drafting only stores editable content and never sends or schedules anything. Never approve or
                     execute a draft without the user's explicit final approval of its exact content and recipients.
                 annotation-scanner:
