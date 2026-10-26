@@ -97,7 +97,7 @@ Configure `WORK_OVERVIEW_ENTRA_TENANT_ID`, `WORK_OVERVIEW_ENTRA_CLIENT_ID`, and 
 and refuse to run outside the sandbox tenant `b9ff29bd-1687-4874-83d1-273303aad419`. Seeding writes data immediately
 and requires explicit tenant confirmation. Cleanup has a separate preview mode.
 
-Seed from IntelliJ by launching the `Tests - Seed Data` Gradle run configuration, or run the equivalent
+Seed from IntelliJ by launching the `Microsoft Graph - Seed Data` Gradle run configuration, or run the equivalent
 Gradle task from the repository root:
 
 ```powershell
@@ -117,7 +117,7 @@ Teams migration messages are immutable after import through the application-only
 Graph timestamps emails at send time. Meeting invitations are sent when the script runs, including for events scheduled in the past. The seeder reuses its recorded Team, channels, and chats; it does not clear existing tenant data. Keep the state file so later runs can reconcile the same Graph objects. Deleting the state file loses those mappings and can lead to duplicate data.
 
 Cleanup previews all mailbox messages and events in writable calendars in the 17 listed mailboxes, all chats involving those users,
-and every Team in the tenant. Review that list, then apply either by launching the `Tests - Clear Data` Gradle run
+and every Team in the tenant. Review that list, then apply either by launching the `Microsoft Graph - Clear Data` Gradle run
 configuration or by running the script directly with its required confirmation switches:
 
 ```powershell

@@ -570,7 +570,7 @@ foreach ($mail in $emails) {
         if (-not $existingDraft.isDraft) {
             $script:seedState.emails[$mail.id].status = 'sent'
             Save-SeedState
-            if ($saved.hash -ne $itemHash) { throw "Email $($mail.id) was sent before an interrupted run and its dataset row has since changed. Run Tests - Seed Data again to reconcile the changed item." }
+            if ($saved.hash -ne $itemHash) { throw "Email $($mail.id) was sent before an interrupted run and its dataset row has since changed. Run Microsoft Graph - Seed Data again to reconcile the changed item." }
             $mailIndex++
             Write-TaskProgress -Activity 'Sending emails' -Current $mailIndex -Total $emails.Count -Status "Recovered sent item | $($mail.id)"
             continue
