@@ -63,7 +63,6 @@ Grant these to the sandbox app registration and grant tenant admin consent only 
 | --- | --- |
 | `User.Read.All` | Resolve the 17 dataset users before creating Team members, chats, and mail/calendar items. |
 | `Team.Create` | Create the Atlas Developer Platform Team. |
-| `TeamMember.Read.All` | Read the current project Team roster so existing users are skipped on repeated seed runs. |
 | `TeamMember.ReadWriteNonOwnerRole.All` | Add missing users to the Team after creating it with Nicolai as its initial owner. |
 | `Channel.Create` | Create its channels. |
 | `Channel.ReadBasic.All` | Find the template-created General channel and reuse it when importing messages. |

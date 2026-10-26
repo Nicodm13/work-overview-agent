@@ -130,7 +130,7 @@ function Ensure-ChatFullHistory {
         [DateTimeOffset]$EarliestMessage
     )
 
-    $members = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/chats/$ChatId/members?`$select=id,userId,roles,visibleHistoryStartDateTime"
+    $members = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/chats/$ChatId/members"
     foreach ($participant in $Participants) {
         $graphUser = $graphUsers[$participant]
         $member = $members | Where-Object { $_.userId -eq $graphUser.id } | Select-Object -First 1
@@ -322,33 +322,22 @@ if (-not $teamId) {
 }
 else { Write-Output "Reusing existing project Team: $teamId" }
 
-$existingTeamMembers = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/teams/$teamId/members?`$select=id,userId,displayName"
-$existingTeamMemberIds = @{}
-foreach ($existingTeamMember in $existingTeamMembers) {
-    if ($existingTeamMember.userId) { $existingTeamMemberIds[$existingTeamMember.userId] = $true }
-}
 $membersToCheck = @($users | Where-Object { $_.userPrincipalName -ne $teamOwner.userPrincipalName })
 $memberTotal = $membersToCheck.Count
 $memberIndex = 0
 foreach ($user in $membersToCheck) {
     $memberIndex++
     $graphUserId = $graphUsers[$user.displayName].id
-    if ($existingTeamMemberIds.ContainsKey($graphUserId)) {
-        Write-TaskProgress -Activity 'Reconciling Team members' -Current $memberIndex -Total $memberTotal -Status "Already present | $($user.displayName)"
-        continue
-    }
     $memberBody = @{
         '@odata.type' = '#microsoft.graph.aadUserConversationMember'
         'user@odata.bind' = "https://graph.microsoft.com/v1.0/users('$graphUserId')"
     }
     try {
         Invoke-Graph -Method POST -Uri "https://graph.microsoft.com/v1.0/teams/$teamId/members" -Body $memberBody | Out-Null
-        $existingTeamMemberIds[$graphUserId] = $true
         Write-TaskProgress -Activity 'Reconciling Team members' -Current $memberIndex -Total $memberTotal -Status "Added | $($user.displayName)"
     }
     catch {
         if ($_ -notmatch '(?i)already exists|already a member|duplicate|MemberAlreadyExists') { throw }
-        $existingTeamMemberIds[$graphUserId] = $true
         Write-TaskProgress -Activity 'Reconciling Team members' -Current $memberIndex -Total $memberTotal -Status "Already present | $($user.displayName)"
     }
     Start-Sleep -Seconds 2
