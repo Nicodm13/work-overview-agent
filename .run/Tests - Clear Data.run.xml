@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run Tests" type="GradleRunConfiguration" factoryName="Gradle">
+  <configuration default="false" name="Tests - Clear Data" type="GradleRunConfiguration" factoryName="Gradle">
     <ExternalSystemSettings>
       <option name="executionName" />
       <option name="externalProjectPath" value="$PROJECT_DIR$" />
@@ -9,7 +9,7 @@
       </option>
       <option name="taskNames">
         <list>
-          <option value=":server:test" />
+          <option value=":server:clearGraphTestData" />
         </list>
       </option>
       <option name="vmOptions" />

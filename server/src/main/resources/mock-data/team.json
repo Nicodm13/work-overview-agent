@@ -1,0 +1,12 @@
+{
+  "displayName": "Atlas Developer Platform",
+  "description": "A six-month project to deliver a secure internal developer platform with a service catalog, standardized CI/CD, and production observability.",
+  "visibility": "private",
+  "channels": [
+    { "displayName": "General", "description": "Project updates and decisions." },
+    { "displayName": "Planning", "description": "Scope, sprint planning, milestones, and dependencies." },
+    { "displayName": "Architecture", "description": "Platform architecture, API contracts, and technical decisions." },
+    { "displayName": "Development", "description": "Implementation progress, code reviews, and integration work." },
+    { "displayName": "Testing and Release", "description": "Quality, security approval, release readiness, and operations." }
+  ]
+}

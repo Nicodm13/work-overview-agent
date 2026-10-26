@@ -26,7 +26,7 @@ public class ReviewTools {
 
     @McpTool(
         name = "get_review",
-        description = "Review a selected time interval across work sources and return evidence-based overview items. Stores minimized, user-scoped evidence references for later retrieval with get_item_evidence. Check coverage and limitations before drawing conclusions.",
+        description = "Review a selected time interval across work sources and return evidence-based overview items. Stores minimized, user-scoped evidence references for later retrieval with get_item_evidence. Check coverage and limitations before drawing conclusions. This tool does not prepare communication drafts. When a finding has a concrete, evidence-based Teams, email, or meeting follow-up, call draft_follow_up_action before presenting the final overview; drafting never sends or schedules the action. Do not silently omit a suitable draft, invent missing recipients, or approve/execute without explicit final user approval.",
         generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,

@@ -14,6 +14,18 @@ spring:
                 version: 0.1.0
                 type: SYNC
                 protocol: STREAMABLE
+                instructions: >-
+                    For work reviews, use the returned evidence to interpret and prioritize findings. Resolve references
+                    to the signed-in user as "you" when the evidence identifies that person; never tell the user to
+                    contact themselves about work assigned to them. For every finding with a concrete, evidence-based
+                    external follow-up, prepare an editable draft by calling draft_follow_up_action before presenting
+                    the final overview. Use the original communication channel and a recipient explicitly supported by
+                    evidence. Do not silently omit a suitable draft. If a recipient, channel, or material content is
+                    uncertain, do not invent it; explain the uncertainty or ask the user for the missing detail.
+                    Use find_contacts to resolve a named recipient to their tenant email address and Graph identity
+                    before drafting; if multiple contacts match, ask the user to choose.
+                    Drafting only stores editable content and never sends or schedules anything. Never approve or
+                    execute a draft without the user's explicit final approval of its exact content and recipients.
                 annotation-scanner:
                     enabled: true
 

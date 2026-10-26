@@ -33,7 +33,7 @@ public class ActionTools {
 
     @McpTool(
         name = "draft_follow_up_action",
-        description = "Prepare an editable action draft for a follow-up item. Preparing a draft does not send an external action.",
+        description = "Prepare and store an editable action draft for a follow-up item. Use this during a work review whenever the evidence supports a concrete Teams message, email, or meeting follow-up; do not wait for the user to separately ask for a draft. Use only supported recipients and content. Preparing a draft does not send or schedule anything and is not user approval.",
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
             destructiveHint = false,

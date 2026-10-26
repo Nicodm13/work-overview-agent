@@ -62,19 +62,24 @@ repository:
 - `Docker - Delete Database`
 - `Start MCP Server`
 - `Start MCP Server - Mocked`
-- `Run Tests`
+- `Tests - Seed Data`
+- `Tests - Clear Data`
+- `Tests - Run`
 
 Run `Docker - Start Database` before `Start MCP Server`. The old generic `Application` run
-configuration is not shared. Use `Run Tests` to execute the full Gradle test suite from IntelliJ.
+configuration is not shared. Use `Tests - Run` to execute the full Gradle test suite from IntelliJ. The two Microsoft
+365 configurations seed or clear data in the disposable sandbox; `Tests - Clear Data` permanently deletes scoped data
+and associated Team group resources.
 
 The live source mode calls Microsoft Graph using the signed-in user's delegated token. It reads
 Outlook messages, default-calendar events, Teams chats, channel posts and returned thread replies
-from teams the user belongs to, and DOCX attachments on Outlook emails as potential meeting
-minutes. It does not read meeting transcripts or Teams file attachments. The client decides which
-attached documents are actually minutes. Graph permissions and consent must be configured for the
-selected sources, and Graph failures are reported rather than replaced with mock results. Channel
-messages are filtered to the requested interval after Graph returns them; pagination limits are
-reported as source limitations.
+from teams the user belongs to, DOCX attachments on Outlook emails as potential meeting minutes,
+and tenant-directory contacts for resolving email and Teams recipients. It does not read meeting
+transcripts or Teams file attachments. The client decides which attached documents are actually
+minutes. Graph permissions and consent must be configured for the selected sources, and Graph
+failures are reported rather than replaced with mock results. Channel messages are filtered to the
+requested interval after Graph returns them; pagination limits are reported as source limitations.
+Mock mode resolves contacts from the shared `mock-data/users.csv` dataset.
 
 To smoke-test live data locally, start Docker Desktop and run `Docker - Start Database`, then use
 `Start MCP Server`. Sign in through the installed MCP client and call `get_review` for a short
@@ -83,6 +88,11 @@ and `MEETING_NOTES` as those sources are available. `MEETING_NOTES` reads DOCX e
 using `Mail.Read`. An empty result means no matching source items were returned; it does not prove
 the user has no outstanding work.
 Use `Start MCP Server - Mocked` to demonstrate the same tools with repeatable sample data.
+
+## Microsoft 365 test data
+
+For the canonical mock dataset, Microsoft 365 seed/cleanup scripts, required Graph permissions, and safe execution steps,
+see the **Microsoft 365 test data** section in the repository's [README](../README.md).
 
 ## Connect Codex as an MCP client
 
@@ -163,7 +173,7 @@ It must never be copied into `client/`.
 Use exactly one backend credential. A client secret is appropriate for local development; prefer a
 certificate in a deployed environment.
 
-Grant only these delegated Microsoft Graph permissions to the Entra app registration:
+The MCP source adapters use these delegated Microsoft Graph permissions:
 
 - `Mail.Read` for Outlook email and DOCX meeting-minute attachments.
 - `Calendars.Read` for calendar events.
@@ -180,6 +190,11 @@ The server uses OAuth's on-behalf-of flow to call Microsoft Graph with the signe
 authority. It never uses application permissions. When Entra reports missing Graph consent or Graph
 denies source access, the review reports source-specific guidance without exposing token details or
 raw Graph error responses. Other source failures remain generic limitations.
+
+The test-data seed script is a separate app-only client-credentials flow. It uses the same sandbox app
+registration's client ID and secret, but only for the script's Graph writes and historical Teams import. The MCP server
+continues to call Graph through its delegated on-behalf-of flow. Remove the temporary application permissions and
+admin consent after seeding is complete.
 
 ## Notes
 

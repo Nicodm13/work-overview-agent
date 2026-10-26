@@ -1,0 +1,34 @@
+conversationId,chatType,topic,participants
+project-room,group,Atlas Developer Platform,Adele Vance|Alex Wilber|Diego Siciliani|Grady Archie|Henrietta Mueller|Isaiah Langer|Johanna Lorenz|Joni Sherman|Lee Gu|Lidia Holloway|Lynne Robbins|Megan Bowen|Miriam Graham|Nestor Wilke|Nicolai Dahl Madsen|Patti Fernandez|Pradeep Gupta
+platform-working-group,group,Atlas Platform Working Group,Alex Wilber|Diego Siciliani|Grady Archie|Isaiah Langer|Megan Bowen|Nicolai Dahl Madsen|Pradeep Gupta
+product-delivery-group,group,Atlas Product and Delivery,Adele Vance|Johanna Lorenz|Joni Sherman|Lidia Holloway|Megan Bowen|Nicolai Dahl Madsen|Patti Fernandez
+quality-release-group,group,Atlas Quality and Release,Henrietta Mueller|Lynne Robbins|Miriam Graham|Nicolai Dahl Madsen|Pradeep Gupta
+data-api-group,group,Atlas Data and API,Diego Siciliani|Lee Gu|Nestor Wilke|Nicolai Dahl Madsen
+dm-adele,oneOnOne,,Nicolai Dahl Madsen|Adele Vance
+dm-alex,oneOnOne,,Nicolai Dahl Madsen|Alex Wilber
+dm-diego,oneOnOne,,Nicolai Dahl Madsen|Diego Siciliani
+dm-grady,oneOnOne,,Nicolai Dahl Madsen|Grady Archie
+dm-henrietta,oneOnOne,,Nicolai Dahl Madsen|Henrietta Mueller
+dm-isaiah,oneOnOne,,Nicolai Dahl Madsen|Isaiah Langer
+dm-johanna,oneOnOne,,Nicolai Dahl Madsen|Johanna Lorenz
+dm-joni,oneOnOne,,Nicolai Dahl Madsen|Joni Sherman
+dm-lee,oneOnOne,,Nicolai Dahl Madsen|Lee Gu
+dm-lidia,oneOnOne,,Nicolai Dahl Madsen|Lidia Holloway
+dm-lynne,oneOnOne,,Nicolai Dahl Madsen|Lynne Robbins
+dm-megan,oneOnOne,,Nicolai Dahl Madsen|Megan Bowen
+dm-miriam,oneOnOne,,Nicolai Dahl Madsen|Miriam Graham
+dm-nestor,oneOnOne,,Nicolai Dahl Madsen|Nestor Wilke
+dm-patti,oneOnOne,,Nicolai Dahl Madsen|Patti Fernandez
+dm-pradeep,oneOnOne,,Nicolai Dahl Madsen|Pradeep Gupta
+dm-pair-adele-megan,oneOnOne,,Adele Vance|Megan Bowen
+dm-pair-alex-diego,oneOnOne,,Alex Wilber|Diego Siciliani
+dm-pair-alex-isaiah,oneOnOne,,Alex Wilber|Isaiah Langer
+dm-pair-diego-lee,oneOnOne,,Diego Siciliani|Lee Gu
+dm-pair-grady-henrietta,oneOnOne,,Grady Archie|Henrietta Mueller
+dm-pair-johanna-joni,oneOnOne,,Johanna Lorenz|Joni Sherman
+dm-pair-megan-patti,oneOnOne,,Megan Bowen|Patti Fernandez
+dm-pair-nestor-pradeep,oneOnOne,,Nestor Wilke|Pradeep Gupta
+dm-pair-lidia-joni,oneOnOne,,Lidia Holloway|Joni Sherman
+dm-pair-lynne-grady,oneOnOne,,Lynne Robbins|Grady Archie
+dm-pair-miriam-henrietta,oneOnOne,,Miriam Graham|Henrietta Mueller
+dm-pair-patti-lidia,oneOnOne,,Patti Fernandez|Lidia Holloway

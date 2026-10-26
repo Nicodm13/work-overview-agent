@@ -32,6 +32,10 @@ final class GraphSourceClient {
         if (!request.ownerId().equals(userProvider.getUserId())) {
             throw new SecurityException("Source request owner does not match the authenticated user");
         }
+        return openForCurrentUser();
+    }
+
+    Session openForCurrentUser() {
         return new Session(tokenProvider.getAccessToken());
     }
 

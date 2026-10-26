@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
 import java.io.ByteArrayOutputStream;
@@ -117,7 +118,7 @@ class GraphSourceAdaptersTest {
             ]}
             """);
 
-        var result = new GraphTeamsSourceAdapter(graph, filter).load(request);
+        var result = new GraphTeamsSourceAdapter(graph, filter, new ObjectMapper(), "").load(request);
 
         assertThat(result.items()).hasSize(3);
         assertThat(result.items()).extracting(item -> item.id()).containsExactlyInAnyOrder(
@@ -145,7 +146,7 @@ class GraphSourceAdaptersTest {
         server.expect(requestTo(startsWith(ROOT + "/me/joinedTeams")))
             .andRespond(withStatus(HttpStatus.FORBIDDEN));
 
-        var result = new GraphTeamsSourceAdapter(graph, filter).load(request);
+        var result = new GraphTeamsSourceAdapter(graph, filter, new ObjectMapper(), "").load(request);
 
         assertThat(result.items()).extracting(item -> item.id()).containsExactly("chat-a:message-1");
         assertThat(result.limitations()).anyMatch(text -> text.contains("Team.ReadBasic.All"));

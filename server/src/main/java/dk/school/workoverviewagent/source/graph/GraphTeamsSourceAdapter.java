@@ -6,11 +6,17 @@ import dk.school.workoverviewagent.source.contract.SourceItem;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
 import dk.school.workoverviewagent.source.contract.SourceResult;
 import dk.school.workoverviewagent.source.filter.SourceItemFilter;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,10 +28,18 @@ class GraphTeamsSourceAdapter implements ISourceAdapter {
 
     private final GraphSourceClient graph;
     private final SourceItemFilter filter;
+    private final ObjectMapper objectMapper;
+    private final String seedStatePath;
 
-    GraphTeamsSourceAdapter(GraphSourceClient graph, SourceItemFilter filter) {
+    GraphTeamsSourceAdapter(
+        GraphSourceClient graph,
+        SourceItemFilter filter,
+        ObjectMapper objectMapper,
+        @Value("${work-overview.test-seed-state-path:}") String seedStatePath) {
         this.graph = graph;
         this.filter = filter;
+        this.objectMapper = objectMapper;
+        this.seedStatePath = seedStatePath;
     }
 
     @Override
@@ -36,6 +50,7 @@ class GraphTeamsSourceAdapter implements ISourceAdapter {
     @Override
     public SourceResult load(SourceRequest request) {
         var session = graph.open(request);
+        var supersededMessageIds = loadSupersededMessageIds();
         var chats = session.list(graph.uri("/me/chats", Map.of("$top", "50")));
         var items = new ArrayList<SourceItem>();
         var limitations = new ArrayList<String>();
@@ -59,6 +74,9 @@ class GraphTeamsSourceAdapter implements ISourceAdapter {
             }
             for (var message : messages.items()) {
                 var messageId = GraphValues.string(message, "id");
+                if (messageId != null && supersededMessageIds.contains(messageId)) {
+                    continue;
+                }
                 var occurredAt = GraphValues.instant(message, "createdDateTime");
                 if (messageId == null || occurredAt == null) {
                     continue;
@@ -84,14 +102,15 @@ class GraphTeamsSourceAdapter implements ISourceAdapter {
                     attributes));
             }
         }
-        loadChannelPosts(session, items, limitations);
+        loadChannelPosts(session, items, limitations, supersededMessageIds);
         return new SourceResult(sourceType(), filter.matching(request, items), limitations);
     }
 
     private void loadChannelPosts(
         GraphSourceClient.Session session,
         List<SourceItem> items,
-        List<String> limitations) {
+        List<String> limitations,
+        java.util.Set<String> supersededMessageIds) {
         GraphSourceClient.ListResult teams;
         try {
             teams = session.list(graph.uri("/me/joinedTeams", Map.of()));
@@ -156,9 +175,9 @@ class GraphTeamsSourceAdapter implements ISourceAdapter {
                         "Posts in at least one Teams channel exceeded the 20-page review limit.");
                 }
                 for (var message : messages.items()) {
-                    addChannelMessage(message, teamId, teamName, channelId, channelName, items);
+                    addChannelMessage(message, teamId, teamName, channelId, channelName, items, supersededMessageIds);
                     for (var reply : GraphValues.objects(message, "replies")) {
-                        addChannelMessage(reply, teamId, teamName, channelId, channelName, items);
+                        addChannelMessage(reply, teamId, teamName, channelId, channelName, items, supersededMessageIds);
                     }
                     var repliesNextLink = GraphValues.string(message, "replies@odata.nextLink");
                     if (repliesNextLink != null) {
@@ -168,7 +187,7 @@ class GraphTeamsSourceAdapter implements ISourceAdapter {
                                 "Replies in at least one Teams thread exceeded the 20-page review limit.");
                         }
                         for (var reply : replies.items()) {
-                            addChannelMessage(reply, teamId, teamName, channelId, channelName, items);
+                            addChannelMessage(reply, teamId, teamName, channelId, channelName, items, supersededMessageIds);
                         }
                     }
                 }
@@ -182,8 +201,12 @@ class GraphTeamsSourceAdapter implements ISourceAdapter {
         String teamName,
         String channelId,
         String channelName,
-        List<SourceItem> items) {
+        List<SourceItem> items,
+        java.util.Set<String> supersededMessageIds) {
         var messageId = GraphValues.string(message, "id");
+        if (messageId != null && supersededMessageIds.contains(messageId)) {
+            return;
+        }
         var occurredAt = GraphValues.instant(message, "createdDateTime");
         if (messageId == null || occurredAt == null) {
             return;
@@ -216,6 +239,40 @@ class GraphTeamsSourceAdapter implements ISourceAdapter {
             senderName == null ? "Unknown sender" : senderName,
             List.of(),
             attributes));
+    }
+
+    private java.util.Set<String> loadSupersededMessageIds() {
+        var candidates = new ArrayList<Path>();
+        if (seedStatePath != null && !seedStatePath.isBlank()) {
+            candidates.add(Path.of(seedStatePath));
+        } else {
+            candidates.add(Path.of("scripts", "test-seed-state.json"));
+            candidates.add(Path.of("server", "scripts", "test-seed-state.json"));
+        }
+        for (var candidate : candidates) {
+            if (!Files.isRegularFile(candidate)) {
+                continue;
+            }
+            try {
+                JsonNode root = objectMapper.readTree(candidate.toFile());
+                var messages = root.path("teamsMessages");
+                var ids = new java.util.HashSet<String>();
+                messages.properties().forEach(entry -> {
+                    var superseded = entry.getValue().path("supersededGraphIds");
+                    if (superseded.isArray()) {
+                        superseded.forEach(id -> {
+                            if (id.isTextual()) {
+                                ids.add(id.asText());
+                            }
+                        });
+                    }
+                });
+                return ids;
+            } catch (JacksonException exception) {
+                throw new IllegalStateException("Could not read Teams seed state at " + candidate, exception);
+            }
+        }
+        return java.util.Set.of();
     }
 
     private static boolean isForbidden(RestClientResponseException exception) {

@@ -1,5 +1,6 @@
 package dk.school.workoverviewagent.source.mock;
 
+import dk.school.workoverviewagent.contact.Contact;
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.source.contract.SourceItem;
 import org.springframework.stereotype.Component;
@@ -19,6 +20,20 @@ import java.util.Map;
 @Component
 @ConditionalOnProperty(prefix = "work-overview.sources", name = "provider", havingValue = "mock")
 public class MockSourceDataLoader {
+
+    public List<Contact> loadContacts() {
+        return readCsv("users.csv").stream()
+            .map(row -> {
+                var userPrincipalName = required(row, "userPrincipalName");
+                return new Contact(
+                    userPrincipalName,
+                    required(row, "displayName"),
+                    userPrincipalName,
+                    userPrincipalName,
+                    row.get("role"));
+            })
+            .toList();
+    }
 
     public List<SourceItem> loadItems(String csvResource, SourceType sourceType) {
         return readCsv(csvResource).stream()
