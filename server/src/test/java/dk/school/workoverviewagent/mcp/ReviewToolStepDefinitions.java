@@ -35,6 +35,11 @@ public class ReviewToolStepDefinitions {
         assertThat(response.items()).hasSize(count);
     }
 
+    @Then("the MCP response contains {int} review item")
+    public void responseContainsSingleItem(int count) {
+        assertThat(response.items()).hasSize(count);
+    }
+
     @Then("the MCP response uses daily overview purpose")
     public void responseUsesDailyOverview() {
         assertThat(response.request().purpose().name()).isEqualTo("DAILY_OVERVIEW");

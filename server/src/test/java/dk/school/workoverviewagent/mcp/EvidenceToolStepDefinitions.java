@@ -1,6 +1,7 @@
 package dk.school.workoverviewagent.mcp;
 
 import dk.school.workoverviewagent.evidence.contract.EvidenceResponse;
+import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.review.contract.ReviewResponse;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -18,9 +19,9 @@ public class EvidenceToolStepDefinitions {
     private ReviewResponse reviewResponse;
     private EvidenceResponse evidenceResponse;
 
-    @When("the evidence tool scenario requests a review from {string} to {string}")
+    @When("the evidence tool scenario requests a Teams-only review from {string} to {string}")
     public void getReview(String startsAt, String endsAt) {
-        reviewResponse = reviewTools.getReview(startsAt, endsAt, null, null);
+        reviewResponse = reviewTools.getReview(startsAt, endsAt, java.util.List.of(SourceType.TEAMS), null);
     }
 
     @When("the get_item_evidence MCP tool is called for the first review item")
