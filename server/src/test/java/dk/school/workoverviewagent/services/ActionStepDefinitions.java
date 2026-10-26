@@ -43,14 +43,13 @@ public class ActionStepDefinitions {
             "Explicit context."));
     }
 
-    @When("the action is executed without final approval")
-    public void executeWithoutApproval() {
+    @When("the action is approved without final approval")
+    public void approveWithoutFinalApproval() {
         try {
-            actionService.executeApprovedAction(new ExecuteApprovedActionRequest(
+            actionService.approveDraft(new ApproveActionRequest(
                 "user-1",
                 draft.draft().id(),
                 false,
-                "content-1",
                 Instant.parse("2026-09-07T10:00:00Z")));
         } catch (Throwable throwable) {
             failure = throwable;
@@ -59,22 +58,19 @@ public class ActionStepDefinitions {
 
     @When("the action is approved and executed")
     public void approveAndExecute() {
-        actionService.approveDraft(new ApproveActionRequest(
+        var approval = actionService.approveDraft(new ApproveActionRequest(
             "user-1",
             draft.draft().id(),
             true,
-            "content-1",
             Instant.parse("2026-09-07T09:59:00Z")));
         execution = actionService.executeApprovedAction(new ExecuteApprovedActionRequest(
             "user-1",
             draft.draft().id(),
-            true,
-            "content-1",
-            Instant.parse("2026-09-07T10:00:00Z")));
+            approval.approvalReference()));
     }
 
-    @Then("the action execution is rejected")
-    public void actionExecutionRejected() {
+    @Then("the action approval is rejected")
+    public void actionApprovalRejected() {
         assertThat(failure).isInstanceOf(IllegalArgumentException.class).hasMessage("finalApproval must be true");
     }
 
@@ -82,5 +78,6 @@ public class ActionStepDefinitions {
     public void actionIsAudited(String ignoredTitle) {
         assertThat(execution.auditLogEntry().followUpItemId()).isEqualTo(draft.draft().followUpItemId());
         assertThat(execution.auditLogEntry().approvalStatus()).isEqualTo("APPROVED");
+        assertThat(execution.auditLogEntry().deliveryStatus()).isEqualTo("SIMULATED");
     }
 }

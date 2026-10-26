@@ -46,6 +46,10 @@ These are used by the MCP server when the user signs in. They grant access in th
 | `Calendars.Read` | Read calendar events. |
 | `Chat.Read` | Read the signed-in user's Teams chats. |
 | `User.ReadBasic.All` | Search tenant directory contacts by name or email for email and Teams recipient resolution. |
+| `Mail.Send` | Send an approved email as the signed-in user. |
+| `Chat.Create` | Create or retrieve one-to-one and group chats for approved Teams messages. |
+| `ChatMessage.Send` | Send an approved message in a Teams chat. |
+| `Calendars.ReadWrite` | Create approved calendar events and invite their attendees. |
 | `Team.ReadBasic.All` | List Teams the signed-in user belongs to. |
 | `Channel.ReadBasic.All` | List accessible channels in those Teams. |
 | `ChannelMessage.Read.All` | Read channel posts and thread replies. Requires admin consent. |

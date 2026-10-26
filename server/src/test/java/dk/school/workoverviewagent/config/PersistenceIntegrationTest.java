@@ -166,8 +166,9 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             INSERT INTO AUDIT_LOG_ENTRY
                 (ID, OWNER_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, OCCURRED_AT,
                  APPROVAL_STATUS, APPROVED_CONTENT_REFERENCE,
+                 DELIVERY_STATUS, EXTERNAL_REFERENCE, FAILURE_DETAIL,
                  CREATED, CREATED_BY, CHANGED, CHANGED_BY, VERSION)
-            VALUES (?, ?, ?, 'EMAIL', CURRENT_TIMESTAMP, 'APPROVED', 'content',
+            VALUES (?, ?, ?, 'EMAIL', CURRENT_TIMESTAMP, 'APPROVED', 'content', 'LEGACY_UNKNOWN', NULL, NULL,
                     CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, ?, 0)
             """, "cross-owner-relationship-audit", owner, item.id(), owner, owner);
 
@@ -300,36 +301,29 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             null,
             List.of(),
             "Explicitly requested by the user.")).draft();
-        var contentReference = "draft-content-v1";
         var approvedAt = Instant.parse("2026-09-10T10:30:00Z");
-        var executedAt = Instant.parse("2026-09-10T10:31:00Z");
 
-        actionService.approveDraft(new ApproveActionRequest(
+        var approval = actionService.approveDraft(new ApproveActionRequest(
             OWNER_ID,
             draft.id(),
             true,
-            contentReference,
             approvedAt));
         actionService.executeApprovedAction(new ExecuteApprovedActionRequest(
             OWNER_ID,
             draft.id(),
-            true,
-            contentReference,
-            executedAt));
+            approval.approvalReference()));
 
         assertThatThrownBy(() -> actionService.executeApprovedAction(
             new ExecuteApprovedActionRequest(
                 OWNER_ID,
                 draft.id(),
-                true,
-                contentReference,
-                executedAt)))
+                approval.approvalReference())))
             .isInstanceOf(IllegalStateException.class);
 
         assertThat(actionService.auditLog(OWNER_ID)).singleElement().satisfies(entry -> {
             assertThat(entry.followUpItemId()).isEqualTo(item.id());
-            assertThat(entry.timestamp()).isEqualTo(executedAt);
             assertThat(entry.approvalStatus()).isEqualTo("APPROVED");
+            assertThat(entry.deliveryStatus()).isEqualTo("SIMULATED");
         });
         assertThat(jdbc.queryForObject(
             "SELECT STATUS FROM ACTION_STATE WHERE OWNER_ID = ? AND DRAFT_ID = ?",

@@ -173,7 +173,7 @@ It must never be copied into `client/`.
 Use exactly one backend credential. A client secret is appropriate for local development; prefer a
 certificate in a deployed environment.
 
-The MCP source adapters use these delegated Microsoft Graph permissions:
+The MCP source adapters and action delivery use delegated Microsoft Graph permissions:
 
 - `Mail.Read` for Outlook email and DOCX meeting-minute attachments.
 - `Calendars.Read` for calendar events.
@@ -181,6 +181,20 @@ The MCP source adapters use these delegated Microsoft Graph permissions:
 - `Team.ReadBasic.All` for listing teams the signed-in user belongs to.
 - `Channel.ReadBasic.All` for listing accessible channels in those teams.
 - `ChannelMessage.Read.All` for reading channel posts and thread replies. This delegated permission requires admin consent.
+
+The action tools also require these delegated permissions when using Graph mode:
+
+- `Mail.Send` to send email from the signed-in user's mailbox.
+- `Chat.Create` to create or retrieve a one-to-one or group chat for the recipient list.
+- `ChatMessage.Send` to send a message in that chat.
+- `Calendars.ReadWrite` to create a calendar event and send invitations to its attendees.
+- `User.ReadBasic.All` to resolve Teams recipients to tenant user IDs. Email and calendar recipients may also be external email addresses.
+
+Action execution uses the signed-in user's delegated authority. `Teamwork.Migrate.All` is for the separate test-data
+seeding/import workflow and is not used to send normal Teams messages. In Graph mode, the action result records when
+Graph accepted the request; an accepted email request is not a guarantee of final delivery. A network timeout is
+reported as `OUTCOME_UNKNOWN` and must be checked in Outlook or Teams before retrying. In mock mode, action execution
+only records `SIMULATED` and makes no Microsoft Graph write.
 
 DOCX attachments larger than 5 MB are skipped. Up to 32,000 characters of extracted text are
 returned in the review response for interpretation, while only a short excerpt is persisted as
@@ -202,7 +216,7 @@ admin consent after seeding is complete.
 - The MCP endpoint requires a correctly configured Entra JWT in the default configuration.
 - Application services are deterministic boundaries. Source adapters fetch and normalize data, Evidence stores source
   references and excerpts, FollowUp stores explicitly requested evidence links, Status stores user-confirmed state, and
-  Action stores explicit drafts, approvals, and audit entries. AI reasoning, prioritization, grouping, and semantic
+  Action stores drafts, exact-content approval references, execution state, and delivery audit entries. AI reasoning, prioritization, grouping, and semantic
   interpretation do not belong in
   these services.
 

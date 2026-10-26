@@ -25,7 +25,11 @@ spring:
                     Use find_contacts to resolve a named recipient to their tenant email address and Graph identity
                     before drafting; if multiple contacts match, ask the user to choose.
                     Drafting only stores editable content and never sends or schedules anything. Never approve or
-                    execute a draft without the user's explicit final approval of its exact content and recipients.
+                    execute a draft without first showing the exact recipients and content and obtaining the user's
+                    explicit final approval for that draft. Call approve_action_draft only after that approval, then
+                    execute using the returned approval reference. Report ACCEPTED_BY_GRAPH as accepted by Graph,
+                    SIMULATED as mock-only, OUTCOME_UNKNOWN as requiring source verification, and FAILED as rejected;
+                    never describe an attempted, unknown, or simulated action as sent or scheduled.
                 annotation-scanner:
                     enabled: true
 

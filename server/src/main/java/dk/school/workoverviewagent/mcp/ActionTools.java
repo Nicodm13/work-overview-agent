@@ -33,7 +33,7 @@ public class ActionTools {
 
     @McpTool(
         name = "draft_follow_up_action",
-        description = "Prepare and store an editable action draft for a follow-up item. Use this during a work review whenever the evidence supports a concrete Teams message, email, or meeting follow-up; do not wait for the user to separately ask for a draft. Use only supported recipients and content. Preparing a draft does not send or schedule anything and is not user approval.",
+        description = "Prepare and store an editable action draft for a follow-up item. Use this during a work review whenever the evidence supports a concrete Teams chat message, email, or meeting invitation; do not wait for the user to separately ask for a draft. Use only supported recipients and content. Preparing a draft does not send or schedule anything and is not user approval. Meeting attendees receive an invitation only after approved execution.",
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
             destructiveHint = false,
@@ -114,7 +114,7 @@ public class ActionTools {
 
     @McpTool(
         name = "approve_action_draft",
-        description = "Record final user approval for the exact editable draft content before execution.",
+        description = "Record final user approval for the exact editable draft content before execution. Call only after the user has seen the current recipients and content and explicitly approved them. Returns a server-generated reference bound to that exact draft snapshot.",
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
             destructiveHint = false,
@@ -123,14 +123,11 @@ public class ActionTools {
         @McpToolParam(description = "ID of the editable draft to approve.", required = true)
         String draftId,
         @McpToolParam(description = "Must be true only after the user has given final approval.", required = true)
-        boolean finalApproval,
-        @McpToolParam(description = "Reference identifying the exact content the user approved.", required = true)
-        String approvedContentReference) {
+        boolean finalApproval) {
         return actionService.approveDraft(new ApproveActionRequest(
             userProvider.getUserId(),
             draftId,
             finalApproval,
-            approvedContentReference,
             null));
     }
 
@@ -176,25 +173,21 @@ public class ActionTools {
 
     @McpTool(
         name = "execute_approved_action",
-        description = "Execute only a previously approved draft and create an audit record. This tool must retain the explicit final-approval check.",
+        description = "Deliver only a previously approved, unchanged draft through the configured source provider and record the outcome. In mock mode this simulates delivery; in Graph mode it sends a Teams chat message or email, or creates a calendar event and invites its attendees. Outcomes distinguish Graph acceptance, simulation, failure, and unknown network results.",
         generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
-            destructiveHint = false,
+            destructiveHint = true,
             idempotentHint = false))
     public ExecuteApprovedActionResponse executeApprovedAction(
         @McpToolParam(description = "ID of the approved draft to execute.", required = true)
         String draftId,
-        @McpToolParam(description = "Must be true only after the user has given final approval.", required = true)
-        boolean finalApproval,
-        @McpToolParam(description = "Reference identifying the exact content that was approved.", required = true)
-        String approvedContentReference) {
+        @McpToolParam(description = "Server-generated approval reference returned by approve_action_draft.", required = true)
+        String approvalReference) {
         return actionService.executeApprovedAction(new ExecuteApprovedActionRequest(
             userProvider.getUserId(),
             draftId,
-            finalApproval,
-            approvedContentReference,
-            null));
+            approvalReference));
     }
 
     private Instant toInstantOrNull(String value) {
