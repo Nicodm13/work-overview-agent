@@ -21,7 +21,7 @@ class MockMeetingNotesSourceAdapter implements ISourceAdapter {
 
     MockMeetingNotesSourceAdapter(SourceItemFilter sourceItemFilter, MockSourceDataLoader dataLoader) {
         this.sourceItemFilter = sourceItemFilter;
-        this.items = dataLoader.loadItems("meeting-notes.csv", SourceType.MEETING_NOTES);
+        this.items = dataLoader.loadMeetingNoteItems();
     }
 
     @Override

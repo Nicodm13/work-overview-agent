@@ -10,6 +10,7 @@ import dk.school.workoverviewagent.source.mock.MockSourceDataLoader;
 import org.springframework.stereotype.Component;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -21,7 +22,9 @@ class MockEmailSourceAdapter implements ISourceAdapter {
 
     MockEmailSourceAdapter(SourceItemFilter sourceItemFilter, MockSourceDataLoader dataLoader) {
         this.sourceItemFilter = sourceItemFilter;
-        this.items = dataLoader.loadItems("email.csv", SourceType.OUTLOOK);
+        var loadedItems = new ArrayList<>(dataLoader.loadItems("email.csv", SourceType.OUTLOOK));
+        loadedItems.addAll(dataLoader.loadMeetingNoteEmailItems());
+        this.items = List.copyOf(loadedItems);
     }
 
     @Override

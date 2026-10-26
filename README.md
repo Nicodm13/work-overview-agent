@@ -23,12 +23,12 @@ Run its tests with:
 
 `server/src/main/resources/mock-data/` is the canonical dataset for both the mock source adapters and the Microsoft 365
 sandbox scripts. It contains the 17 project users (`users.csv`), Team and channel definitions (`team.json`), chat
-definitions (`teams-conversations.csv`), and shared Outlook, calendar, Teams, and meeting-note records. The mock
-adapters read the source CSVs directly; the seeder reads the same CSVs and creates the corresponding Microsoft 365
-items. The current six-month history (April–October 2026) contains 144 emails, 34 calendar events, 219 Teams messages,
-33 chats (including 28 one-to-one chats across the team), and 15 meeting notes across the 17 users. Meeting notes remain mock-only because the seeder does not import them into
-Graph.
-
+definitions (`teams-conversations.csv`), shared Outlook, calendar, and Teams records, and 15 synthetic meeting-minutes
+DOCX files. The documents contain their own meeting metadata and notes; mock mode reads them directly, and the Graph
+seeder sends each document as an attachment to its meeting participants. The current six-month history (April–October
+2026) contains 144 project emails, 15 meeting-minutes emails with DOCX attachments, 34 calendar events, 219 Teams
+messages, 33 chats (including 28 one-to-one chats across the team), and 15 meeting notes. Graph timestamps the minutes
+emails when the seed script runs.
 ### Microsoft Graph permissions
 
 The running AI and the test-data scripts use different permission types and flows. Configure only the delegated
@@ -71,7 +71,7 @@ Grant these to the sandbox app registration and grant tenant admin consent only 
 | `Chat.Read.All` | One-time adoption of existing chat IDs from the earlier seed-state format. It is no longer needed after the new state ledger records conversation-to-chat mappings. |
 | `Chat.ManageDeletion.All` | Restore an adopted chat if Graph reports it is soft-deleted. Needed only when a chat from an earlier cleanup is being reused. |
 | `Teamwork.Migrate.All` | Import Teams channel and chat messages with dataset authors and historical timestamps. |
-| `Mail.ReadWrite` | Create resumable email drafts and adopt earlier seeded messages. |
+| `Mail.ReadWrite` | Create resumable email drafts with meeting-note attachments and adopt earlier seeded messages. |
 | `Mail.Send` | Send each completed dataset draft as its listed sender. |
 | `Calendars.ReadWrite` | Create the dataset calendar events. |
 
