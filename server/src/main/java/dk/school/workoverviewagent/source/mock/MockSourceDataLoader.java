@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -28,8 +29,9 @@ import java.util.regex.Pattern;
 public class MockSourceDataLoader {
 
     private static final Pattern MEETING_NOTE_FILENAME = Pattern.compile(
-        "^(\\d{4}-\\d{2}-\\d{2}) - Minutes of Meeting - .+\\.docx$",
+        "^Minutes of Meeting - (.+)\\.docx$",
         Pattern.CASE_INSENSITIVE);
+    private static final Instant DATASET_NOW = Instant.now();
 
     public List<Contact> loadContacts() {
         return readCsv("users.csv").stream()
@@ -113,17 +115,19 @@ public class MockSourceDataLoader {
     private String meetingNoteId(String documentName) {
         Matcher matcher = MEETING_NOTE_FILENAME.matcher(documentName);
         if (!matcher.matches()) {
-            throw new IllegalArgumentException("Meeting-note document must use the YYYY-MM-DD naming pattern: "
+            throw new IllegalArgumentException("Meeting-note document must use the 'Minutes of Meeting - <title>' naming pattern: "
                 + documentName);
         }
-        return "notes-" + matcher.group(1);
+        var stableTitle = matcher.group(1).toLowerCase(java.util.Locale.ROOT)
+            .replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
+        return "notes-" + stableTitle;
     }
 
     private SourceItem toSourceItem(Map<String, String> row, SourceType sourceType) {
         return new SourceItem(
             required(row, "id"),
             sourceType,
-            Instant.parse(required(row, "occurredAt")),
+            parseTimestamp(required(row, "occurredAt")),
             required(row, "title"),
             row.get("content"),
             required(row, "senderOrOrganizer"),
@@ -183,9 +187,12 @@ public class MockSourceDataLoader {
                 }
             }
             var attendees = required(metadata, "Participants").split(";");
+            var dateToken = required(metadata, "Date and time");
+            var occurredAt = parseTimestamp(dateToken);
+            text = text.replace(dateToken, occurredAt.toString());
             return new MeetingNoteDocument(
                 required(metadata, "Meeting"),
-                Instant.parse(required(metadata, "Date and time")),
+                occurredAt,
                 required(metadata, "Organizer"),
                 List.of(attendees).stream().map(String::strip).filter(value -> !value.isBlank()).toList(),
                 required(metadata, "Topic"),
@@ -244,10 +251,21 @@ public class MockSourceDataLoader {
                 .contains(key)
                 && value != null
                 && !value.isBlank()) {
-                attributes.put(key, value);
+                attributes.put(key, isTimestampField(key) ? parseTimestamp(value).toString() : value);
             }
         });
         return attributes;
+    }
+
+    private Instant parseTimestamp(String value) {
+        if (value.startsWith("NOW-")) {
+            return DATASET_NOW.minus(Duration.parse(value.substring("NOW-".length())));
+        }
+        throw new IllegalArgumentException("Mock data timestamps must use a relative NOW-PT<n>S token: " + value);
+    }
+
+    private boolean isTimestampField(String field) {
+        return List.of("startsAt", "endsAt", "start", "end").contains(field);
     }
 
     private String required(Map<String, String> row, String key) {
@@ -266,4 +284,5 @@ public class MockSourceDataLoader {
         String topicId,
         String text) {
     }
+
 }

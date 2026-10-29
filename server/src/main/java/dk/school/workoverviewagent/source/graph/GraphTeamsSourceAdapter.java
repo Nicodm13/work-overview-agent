@@ -74,7 +74,8 @@ class GraphTeamsSourceAdapter implements ISourceAdapter {
             }
             for (var message : messages.items()) {
                 var messageId = GraphValues.string(message, "id");
-                if (messageId != null && supersededMessageIds.contains(messageId)) {
+                if (messageId != null && (supersededMessageIds.contains(messageId)
+                    || GraphValues.string(message, "deletedDateTime") != null)) {
                     continue;
                 }
                 var occurredAt = GraphValues.instant(message, "createdDateTime");
@@ -204,7 +205,8 @@ class GraphTeamsSourceAdapter implements ISourceAdapter {
         List<SourceItem> items,
         java.util.Set<String> supersededMessageIds) {
         var messageId = GraphValues.string(message, "id");
-        if (messageId != null && supersededMessageIds.contains(messageId)) {
+        if (messageId != null && (supersededMessageIds.contains(messageId)
+            || GraphValues.string(message, "deletedDateTime") != null)) {
             return;
         }
         var occurredAt = GraphValues.instant(message, "createdDateTime");

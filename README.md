@@ -53,6 +53,7 @@ These are used by the MCP server when the user signs in. They grant access in th
 | `Team.ReadBasic.All` | List Teams the signed-in user belongs to. |
 | `Channel.ReadBasic.All` | List accessible channels in those Teams. |
 | `ChannelMessage.Read.All` | Read channel posts and thread replies. Requires admin consent. |
+| `Chat.ReadWrite` | Soft-delete messages in the signed-in dataset user's chats before reseeding them. |
 
 #### Test-data seeding — Application permissions
 
@@ -111,7 +112,11 @@ The script can also be run directly from the repository root:
 
 The seed keeps a local `server/scripts/test-seed-state.json` ledger, ignored by Git. It records stable dataset row IDs, content hashes, and Graph IDs after each successful operation, so interrupted runs resume and unchanged rows are skipped. On first run after upgrading, it adopts matching prior seeded messages, events, chats, and the existing Team where Graph exposes their seed marker, roster, or transaction ID. Calendar events are patched in place when a CSV row changes. Since Graph allows changing a message's body and subject only while it is a draft, changed sent test emails are removed from the listed participants' mailboxes and recreated from a resumable draft. This applies only to messages identified as seeded by the ledger or seed header.
 
-Teams migration messages are immutable after import through the application-only migration API. Unchanged rows are skipped; changed rows are imported as a new version with a distinct timestamp. The old message remains stored in Teams, and its known Graph ID is marked superseded in the ledger so the live Teams adapter excludes that old version from reviews. For a legacy imported message whose Graph ID was never recorded, a timestamp conflict is adopted without an ID; that message cannot be hidden if its dataset row is later changed. If you need a completely clean Teams history, the cleanup procedure remains separate, and soft-deleted one-to-one chats cannot be reused until restored or until Microsoft's recovery window expires.
+Mock timestamps are stored as relative ISO durations such as `NOW-PT86400S` (one day before load time), not fixed calendar dates. The Graph seeder and mock loader resolve every token against one captured current time; the tokens span the same two-week window. Meeting-note DOCX files use these tokens too, and their filenames no longer contain dates. The team JSON has no timestamp fields.
+
+Before importing the rolling timeline, the seeder uses delegated device-code sign-in with `Chat.ReadWrite` to soft-delete messages in the signed-in dataset user's seeded chats. Sign in as the dataset account whose chat history the MCP review will read. Chat messages outside that user's chats are not changed. Enable public client/device-code flow for the app registration, or provide a valid delegated token in `WORK_OVERVIEW_GRAPH_DELEGATED_ACCESS_TOKEN`. The app-only migration token remains responsible for importing the new messages.
+
+Teams migration messages are immutable after import through the application-only migration API. Before each new seed, messages in the signed-in dataset user's seeded chats are soft-deleted while the chats remain active; then the refreshed messages are imported into those same chats. The Graph adapter ignores messages with a deletion timestamp. Mock mode resolves the same relative timestamp tokens when the mock source loader starts.
 
 Graph timestamps emails at send time. Meeting invitations are sent when the script runs, including for events scheduled in the past. The seeder reuses its recorded Team, channels, and chats; it does not clear existing tenant data. Keep the state file so later runs can reconcile the same Graph objects. Deleting the state file loses those mappings and can lead to duplicate data.
 

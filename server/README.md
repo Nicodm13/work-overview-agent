@@ -210,6 +210,13 @@ registration's client ID and secret, but only for the script's Graph writes and 
 continues to call Graph through its delegated on-behalf-of flow. Remove the temporary application permissions and
 admin consent after seeding is complete.
 
+Before importing refreshed Teams messages, the seed script also requests delegated `Chat.ReadWrite` through device-code
+sign-in and soft-deletes existing messages in the signed-in dataset user's seeded chats. The chats remain active and
+are reused for the new messages. Enable public client flows on the sandbox app registration for device-code sign-in,
+or set `WORK_OVERVIEW_GRAPH_DELEGATED_ACCESS_TOKEN` to a current delegated token with `Chat.ReadWrite`. Sign in as
+the same dataset user whose chat history the MCP client will review. Mock source timestamps are rebased into the same
+14-day window when the mock source loader starts.
+
 ## Notes
 
 - This server currently uses the Spring AI MCP WebMVC starter with Streamable HTTP.

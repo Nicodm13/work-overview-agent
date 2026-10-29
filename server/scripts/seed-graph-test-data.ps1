@@ -5,6 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.IO.Compression
 $expectedTenantId = 'b9ff29bd-1687-4874-83d1-273303aad419'
 $dataRoot = Join-Path $PSScriptRoot '..\src\main\resources\mock-data'
 $configPath = Join-Path $PSScriptRoot '..\.env'
@@ -37,13 +38,54 @@ function Get-GraphToken {
     return $token.access_token
 }
 
+function Get-DelegatedGraphToken {
+    param([string]$TenantId, [string]$ClientId)
+    if ($env:WORK_OVERVIEW_GRAPH_DELEGATED_ACCESS_TOKEN) {
+        return $env:WORK_OVERVIEW_GRAPH_DELEGATED_ACCESS_TOKEN
+    }
+
+    $deviceCode = Invoke-RestMethod -Method Post `
+        -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/devicecode" `
+        -ContentType 'application/x-www-form-urlencoded' `
+        -Body @{ client_id = $ClientId; scope = 'https://graph.microsoft.com/Chat.ReadWrite offline_access' }
+    Write-Host $deviceCode.message
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds([int]$deviceCode.expires_in)
+    $pollInterval = [Math]::Max(5, [int]$deviceCode.interval)
+    while ([DateTimeOffset]::UtcNow -lt $deadline) {
+        Start-Sleep -Seconds $pollInterval
+        try {
+            $token = Invoke-RestMethod -Method Post `
+                -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
+                -ContentType 'application/x-www-form-urlencoded' `
+                -Body @{
+                    grant_type = 'urn:ietf:params:oauth:grant-type:device_code'
+                    client_id = $ClientId
+                    device_code = $deviceCode.device_code
+                }
+            return $token.access_token
+        }
+        catch {
+            $details = $_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue
+            if ($details.error -eq 'authorization_pending') { continue }
+            if ($details.error -eq 'slow_down') { $pollInterval += 5; continue }
+            if ($details.error) {
+                throw "Delegated Chat.ReadWrite sign-in failed: $($details.error_description)"
+            }
+            throw
+        }
+    }
+    throw 'Delegated Chat.ReadWrite sign-in expired before it completed.'
+}
+
 function Invoke-Graph {
     param(
         [ValidateSet('GET', 'POST', 'PATCH', 'DELETE')][string]$Method,
         [string]$Uri,
-        [object]$Body
+        [object]$Body,
+        [switch]$UseDelegatedToken
     )
-    $headers = @{ Authorization = "Bearer $script:graphToken"; Prefer = 'IdType="ImmutableId"' }
+    $accessToken = if ($UseDelegatedToken) { $script:delegatedGraphToken } else { $script:graphToken }
+    $headers = @{ Authorization = "Bearer $accessToken"; Prefer = 'IdType="ImmutableId"' }
     $request = @{ Method = $Method; Uri = $Uri; Headers = $headers; UseBasicParsing = $true }
     if ($null -ne $Body) {
         $request.ContentType = 'application/json'
@@ -77,15 +119,74 @@ function Invoke-Graph {
 }
 
 function Get-AllGraphItems {
-    param([string]$Uri)
+    param([string]$Uri, [switch]$UseDelegatedToken)
     $items = [System.Collections.Generic.List[object]]::new()
     $next = $Uri
     while ($next) {
-        $page = (Invoke-Graph -Method GET -Uri $next).Body
+        $page = (Invoke-Graph -Method GET -Uri $next -UseDelegatedToken:$UseDelegatedToken).Body
         foreach ($item in $page.value) { $items.Add($item) }
         $next = $page.'@odata.nextLink'
     }
     return $items
+}
+
+function Clear-ActiveSeedChats {
+    param([object[]]$Conversations, [hashtable]$ConversationIds)
+    $identity = (Invoke-Graph -Method GET -Uri 'https://graph.microsoft.com/v1.0/me?$select=id,userPrincipalName' -UseDelegatedToken).Body
+    $seedUser = $users | Where-Object { $_.userPrincipalName -ieq $identity.userPrincipalName } | Select-Object -First 1
+    if (-not $seedUser) {
+        throw "Sign in with a user from mock-data/users.csv to clear that user's seeded chats. Signed-in user: $($identity.userPrincipalName)."
+    }
+    $activeChats = Get-AllGraphItems -Uri 'https://graph.microsoft.com/v1.0/me/chats?$top=50' -UseDelegatedToken
+    $activeChatIds = @{}
+    foreach ($chat in $activeChats) { $activeChatIds[$chat.id] = $true }
+    $expectedChatIds = @(
+        foreach ($conversation in $Conversations) {
+            $participants = @($conversation.participants -split '\|' | ForEach-Object { $_.Trim() })
+            if ($seedUser.displayName -in $participants) { $ConversationIds[$conversation.conversationId] }
+        }
+    )
+    $uniqueChatIds = @($expectedChatIds | Where-Object { $_ } | Sort-Object -Unique)
+    $script:clearedChatIds = @{}
+    foreach ($chatId in $uniqueChatIds) {
+        if (-not $activeChatIds.ContainsKey($chatId)) {
+            throw "Seed chat $chatId for signed-in user $($identity.userPrincipalName) is not visible in /me/chats, so its messages cannot be cleared."
+        }
+        $script:clearedChatIds[$chatId] = $true
+    }
+    $cleared = 0
+    foreach ($chatId in $uniqueChatIds) {
+        if (-not $activeChatIds.ContainsKey($chatId)) {
+            continue
+        }
+        $messages = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/me/chats/$([uri]::EscapeDataString($chatId))/messages?`$top=50&`$select=id,deletedDateTime,messageType" -UseDelegatedToken
+        foreach ($message in $messages) {
+            if (-not $message.id -or $message.deletedDateTime -or $message.messageType -and $message.messageType -ne 'message') { continue }
+            $messageId = [uri]::EscapeDataString($message.id)
+            $encodedChatId = [uri]::EscapeDataString($chatId)
+            Invoke-Graph -Method POST -Uri "https://graph.microsoft.com/v1.0/users/$($identity.id)/chats/$encodedChatId/messages/$messageId/softDelete" -UseDelegatedToken | Out-Null
+            $cleared++
+        }
+    }
+    $skipped = @($ConversationIds.Values | Where-Object { $_ -notin $uniqueChatIds } | Sort-Object -Unique).Count
+    Write-Output "Soft-deleted $cleared messages in $($identity.userPrincipalName)'s seeded chats; $skipped other dataset chats are outside that user's delegated scope."
+}
+
+function Ensure-SeedChatActive {
+    param([string]$ChatId)
+    $encodedChatId = [uri]::EscapeDataString($ChatId)
+    try {
+        Invoke-Graph -Method GET -Uri "https://graph.microsoft.com/v1.0/chats/$encodedChatId?`$select=id" | Out-Null
+    }
+    catch {
+        if ($_ -notmatch 'HTTP 404') { throw }
+        try {
+            Invoke-Graph -Method POST -Uri "https://graph.microsoft.com/v1.0/teamwork/deletedChats/$encodedChatId/undoDelete" | Out-Null
+        }
+        catch {
+            throw "Could not restore seed chat $ChatId before clearing its messages. $_"
+        }
+    }
 }
 
 function Start-ChatMigration {
@@ -190,6 +291,13 @@ function Resolve-DatasetAttachment {
     return $attachmentPath
 }
 
+function Get-MeetingNoteIdFromFileName {
+    param([string]$FileName)
+    $title = [IO.Path]::GetFileNameWithoutExtension($FileName) -replace '^Minutes of Meeting - ', ''
+    $slug = $title.ToLowerInvariant() -replace '[^a-z0-9]+', '-'
+    return "notes-$($slug.Trim('-'))"
+}
+
 function Read-MeetingNoteDocument {
     param([string]$RelativePath)
     $documentPath = Resolve-DatasetAttachment -RelativePath $RelativePath
@@ -224,7 +332,9 @@ function Read-MeetingNoteDocument {
             throw "DOCX meeting note is missing '$field' metadata: $RelativePath"
         }
     }
-    $metadata.id = 'notes-' + ([DateTimeOffset]::Parse($metadata.occurredAt)).ToString('yyyy-MM-dd')
+    $metadata.dateToken = $metadata.occurredAt
+    $metadata.occurredAt = Resolve-DatasetTimestamp -Value $metadata.dateToken
+    $metadata.id = Get-MeetingNoteIdFromFileName -FileName $RelativePath
     $metadata.participantNames = @($metadata.participants -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
     return [pscustomobject]$metadata
 }
@@ -236,12 +346,20 @@ function Get-DatasetEmailAttachments {
         foreach ($relativePath in ($Mail.attachments -split '\|')) {
             $attachmentPath = Resolve-DatasetAttachment -RelativePath $relativePath
             $bytes = [System.IO.File]::ReadAllBytes($attachmentPath)
+            $attachmentName = [System.IO.Path]::GetFileName($attachmentPath)
+            if ($relativePath -like 'meeting-notes/*.docx') {
+                $note = Read-MeetingNoteDocument -RelativePath $relativePath
+                $rebasedTimestamp = $script:meetingNoteTimestampMap[$note.dateToken]
+                if ($rebasedTimestamp) {
+                    $bytes = Set-MeetingNoteDocumentDate -Bytes $bytes -OldTimestamp $note.dateToken -NewTimestamp $rebasedTimestamp
+                }
+            }
             if ($bytes.Length -gt 3MB) {
                 throw "Graph simple file attachments must be smaller than 3 MB: $relativePath"
             }
             @{
                 '@odata.type' = '#microsoft.graph.fileAttachment'
-                name = [System.IO.Path]::GetFileName($attachmentPath)
+                name = $attachmentName
                 contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                 contentBytes = [Convert]::ToBase64String($bytes)
             }
@@ -250,10 +368,44 @@ function Get-DatasetEmailAttachments {
     return $attachments
 }
 
+function Set-MeetingNoteDocumentDate {
+    param([byte[]]$Bytes, [string]$OldTimestamp, [string]$NewTimestamp)
+    $stream = [System.IO.MemoryStream]::new()
+    try {
+        $stream.Write($Bytes, 0, $Bytes.Length)
+        $stream.Position = 0
+        $archive = [System.IO.Compression.ZipArchive]::new($stream, [System.IO.Compression.ZipArchiveMode]::Update, $true)
+        try {
+            $entry = $archive.GetEntry('word/document.xml')
+            if (-not $entry) { throw 'Meeting-note DOCX has no Word document body.' }
+            $reader = [System.IO.StreamReader]::new($entry.Open())
+            try { $xml = $reader.ReadToEnd() }
+            finally { $reader.Dispose() }
+            $entry.Delete()
+            $updatedEntry = $archive.CreateEntry('word/document.xml', [System.IO.Compression.CompressionLevel]::Optimal)
+            $writer = [System.IO.StreamWriter]::new($updatedEntry.Open(), [System.Text.UTF8Encoding]::new($false))
+            try { $writer.Write($xml.Replace($OldTimestamp, $NewTimestamp)) }
+            finally { $writer.Dispose() }
+        }
+        finally { $archive.Dispose() }
+        return ,$stream.ToArray()
+    }
+    finally { $stream.Dispose() }
+}
+
 function Normalize-MailBody {
     param([string]$Content)
     $plain = [System.Net.WebUtility]::HtmlDecode(($Content -replace '<[^>]+>', ''))
     return ($plain -replace '\s+', ' ').Trim()
+}
+
+function Resolve-DatasetTimestamp {
+    param([string]$Value)
+    if ($Value -match '^NOW-(PT[0-9]+(?:\.[0-9]+)?S)$') {
+        $duration = [System.Xml.XmlConvert]::ToTimeSpan($Matches[1])
+        return $script:datasetNow.Subtract($duration).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    }
+    throw "Dataset timestamp must use a relative NOW-PT<n>S token, received '$Value'."
 }
 
 function Save-SeedState {
@@ -336,14 +488,33 @@ $script:statePath = Join-Path $PSScriptRoot 'test-seed-state.json'
 $script:seedState = Get-SeedState -Path $script:statePath -TenantId $tenantId
 Save-SeedState
 
+$script:datasetNow = [DateTimeOffset]::UtcNow
 $users = Import-Csv -LiteralPath (Join-Path $dataRoot 'users.csv')
 $emails = @(Import-Csv -LiteralPath (Join-Path $dataRoot 'email.csv'))
 $meetingNoteDirectory = Join-Path $dataRoot 'meeting-notes'
 $meetingNotes = @(Get-ChildItem -LiteralPath $meetingNoteDirectory -Filter '*.docx' -File | Sort-Object Name)
 if ($meetingNotes.Count -eq 0) { throw "No meeting-note DOCX files found in $meetingNoteDirectory." }
+$events = @(Import-Csv -LiteralPath (Join-Path $dataRoot 'calendar.csv'))
+$messages = @(Import-Csv -LiteralPath (Join-Path $dataRoot 'teams.csv'))
+$conversations = Import-Csv -LiteralPath (Join-Path $dataRoot 'teams-conversations.csv')
+$timelineRecords = @($emails) + @($events) + @($messages)
+$meetingNoteMetadata = @(
+    foreach ($noteFile in $meetingNotes) {
+        Read-MeetingNoteDocument -RelativePath "meeting-notes/$($noteFile.Name)"
+    }
+)
+$script:meetingNoteTimestampMap = @{}
+$timestampFields = @('occurredAt', 'startsAt', 'endsAt')
+foreach ($record in $timelineRecords) {
+    foreach ($field in $timestampFields) {
+        if ($record.$field) { $record.$field = Resolve-DatasetTimestamp -Value $record.$field }
+    }
+}
+foreach ($note in $meetingNoteMetadata) { $script:meetingNoteTimestampMap[$note.dateToken] = $note.occurredAt }
 $meetingNoteEmails = foreach ($noteFile in $meetingNotes) {
     $attachmentPath = "meeting-notes/$($noteFile.Name)"
-    $note = Read-MeetingNoteDocument -RelativePath $attachmentPath
+    $noteId = Get-MeetingNoteIdFromFileName -FileName $noteFile.Name
+    $note = $meetingNoteMetadata | Where-Object { $_.id -eq $noteId } | Select-Object -First 1
     [pscustomobject]@{
         id = "meeting-note-email-$($note.id)"
         occurredAt = $note.occurredAt
@@ -358,9 +529,6 @@ $meetingNoteEmails = foreach ($noteFile in $meetingNotes) {
     }
 }
 $emails = @($emails) + @($meetingNoteEmails)
-$events = Import-Csv -LiteralPath (Join-Path $dataRoot 'calendar.csv')
-$messages = Import-Csv -LiteralPath (Join-Path $dataRoot 'teams.csv')
-$conversations = Import-Csv -LiteralPath (Join-Path $dataRoot 'teams-conversations.csv')
 $team = Get-Content -LiteralPath (Join-Path $dataRoot 'team.json') -Raw | ConvertFrom-Json
 $userByName = @{}
 foreach ($user in $users) { $userByName[$user.displayName] = $user }
@@ -370,7 +538,7 @@ Write-Output "Shared dataset: $((Resolve-Path $dataRoot).Path)"
 Write-Output "Users: $($users.Count)"
 Write-Output "Team: $($team.displayName), $($team.channels.Count) channels"
 Write-Output "Chats: $($conversations.Count) (one-to-one and group)"
-Write-Output "Historical Teams messages: $($messages.Count)"
+Write-Output "Recent-window Teams messages: $($messages.Count)"
 Write-Output "Emails to reconcile: $($emails.Count) including $($meetingNotes.Count) meeting-minutes emails (new or corrected messages are sent; unchanged messages are skipped)"
 Write-Output "Calendar events to reconcile: $($events.Count); attendees can receive invitations or update notices"
 if (-not $clientId -or -not $clientSecret) { throw 'Set WORK_OVERVIEW_ENTRA_CLIENT_ID and WORK_OVERVIEW_ENTRA_CLIENT_SECRET in server/.env or the process environment.' }
@@ -514,7 +682,13 @@ foreach ($conversation in $conversations) {
     Write-TaskProgress -Activity 'Creating chats' -Current $conversationIndex -Total $conversations.Count -Status $conversation.topic
 }
 
-$historyStart = '2025-01-01T00:00:00Z'
+foreach ($chatId in @($conversationIds.Values | Sort-Object -Unique)) {
+    Ensure-SeedChatActive -ChatId $chatId
+}
+$script:delegatedGraphToken = Get-DelegatedGraphToken -TenantId $tenantId -ClientId $clientId
+Clear-ActiveSeedChats -Conversations $conversations -ConversationIds $conversationIds
+
+$historyStart = $script:datasetNow.AddDays(-14).ToString('yyyy-MM-ddTHH:mm:ssZ')
 $channelMessages = @($messages | Where-Object { $_.team -and $_.channel })
 $channelMessageTotal = $channelMessages.Count
 $channelMessageIndex = 0
@@ -567,7 +741,8 @@ $chatGroups = $chatMessages | Group-Object conversationId
 foreach ($group in $chatGroups) {
     $chatId = $conversationIds[$group.Name]
     if (-not $chatId) { throw "Dataset refers to unknown conversation '$($group.Name)'." }
-    $needsMigration = @($group.Group | Where-Object { $saved = $script:seedState.teamsMessages[$_.id]; -not $saved -or $saved.hash -ne (Get-RecordHash $_) }).Count -gt 0
+    $chatWasCleared = $script:clearedChatIds.ContainsKey($chatId)
+    $needsMigration = $chatWasCleared -or @($group.Group | Where-Object { $saved = $script:seedState.teamsMessages[$_.id]; -not $saved -or $saved.hash -ne (Get-RecordHash $_) }).Count -gt 0
     if (-not $needsMigration) {
         foreach ($item in $group.Group) { $chatMessageIndex++; Write-TaskProgress -Activity 'Importing chat messages' -Current $chatMessageIndex -Total $chatMessageTotal -Status "Unchanged | $($item.id)" }
         if ($group.Name -in @('project-room', 'platform-working-group', 'product-delivery-group', 'quality-release-group', 'data-api-group')) {
@@ -581,7 +756,7 @@ foreach ($group in $chatGroups) {
     foreach ($item in ($group.Group | Sort-Object occurredAt)) {
         $itemHash = Get-RecordHash $item
         $saved = $script:seedState.teamsMessages[$item.id]
-        if ($saved -and $saved.hash -eq $itemHash) {
+        if (-not $chatWasCleared -and $saved -and $saved.hash -eq $itemHash) {
             $chatMessageIndex++
             Write-TaskProgress -Activity 'Importing chat messages' -Current $chatMessageIndex -Total $chatMessageTotal -Status "Unchanged | $($item.id)"
             continue
