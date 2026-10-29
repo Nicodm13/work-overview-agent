@@ -1,12 +1,31 @@
 {
-  "displayName": "Atlas Developer Platform",
-  "description": "A six-month project to deliver a secure internal developer platform with a service catalog, standardized CI/CD, and production observability.",
+  "displayName": "Northstar Community Open Day",
+  "description": "Two weeks of planning for a community open day. Each work group has one email follow-up, one Teams follow-up, and one meeting to arrange.",
   "visibility": "private",
   "channels": [
-    { "displayName": "General", "description": "Project updates and decisions." },
-    { "displayName": "Planning", "description": "Scope, sprint planning, milestones, and dependencies." },
-    { "displayName": "Architecture", "description": "Platform architecture, API contracts, and technical decisions." },
-    { "displayName": "Development", "description": "Implementation progress, code reviews, and integration work." },
-    { "displayName": "Testing and Release", "description": "Quality, security approval, release readiness, and operations." }
+    {
+      "displayName": "General",
+      "description": "Shared event updates and decisions."
+    },
+    {
+      "displayName": "Planning",
+      "description": "Event schedule and coordination."
+    },
+    {
+      "displayName": "Food and Catering",
+      "description": "Guest counts, dietary needs, and the catering order."
+    },
+    {
+      "displayName": "Room Setup",
+      "description": "Tables, seating, and accessible routes."
+    },
+    {
+      "displayName": "Volunteers",
+      "description": "Volunteer shifts and briefings."
+    },
+    {
+      "displayName": "Guest Information",
+      "description": "RSVPs, signs, and welcome materials."
+    }
   ]
 }

@@ -2,15 +2,14 @@ package dk.school.workoverviewagent.source.mock.adapter;
 
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.source.api.ISourceAdapter;
-import dk.school.workoverviewagent.source.contract.SourceItem;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
 import dk.school.workoverviewagent.source.contract.SourceResult;
 import dk.school.workoverviewagent.source.filter.SourceItemFilter;
 import dk.school.workoverviewagent.source.mock.MockSourceDataLoader;
+import dk.school.workoverviewagent.user.IUserProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -18,13 +17,16 @@ import java.util.List;
 class MockEmailSourceAdapter implements ISourceAdapter {
 
     private final SourceItemFilter sourceItemFilter;
-    private final List<SourceItem> items;
+    private final MockSourceDataLoader dataLoader;
+    private final IUserProvider userProvider;
 
-    MockEmailSourceAdapter(SourceItemFilter sourceItemFilter, MockSourceDataLoader dataLoader) {
+    MockEmailSourceAdapter(
+        SourceItemFilter sourceItemFilter,
+        MockSourceDataLoader dataLoader,
+        IUserProvider userProvider) {
         this.sourceItemFilter = sourceItemFilter;
-        var loadedItems = new ArrayList<>(dataLoader.loadItems("email.csv", SourceType.OUTLOOK));
-        loadedItems.addAll(dataLoader.loadMeetingNoteEmailItems());
-        this.items = List.copyOf(loadedItems);
+        this.dataLoader = dataLoader;
+        this.userProvider = userProvider;
     }
 
     @Override
@@ -34,6 +36,7 @@ class MockEmailSourceAdapter implements ISourceAdapter {
 
     @Override
     public SourceResult load(SourceRequest request) {
+        var items = dataLoader.loadEmailItemsForUser(userProvider.getUserPrincipalName());
         return new SourceResult(SourceType.OUTLOOK, sourceItemFilter.matching(request, items), List.of());
     }
 }

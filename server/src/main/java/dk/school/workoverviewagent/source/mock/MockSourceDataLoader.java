@@ -15,8 +15,11 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,7 +34,10 @@ public class MockSourceDataLoader {
     private static final Pattern MEETING_NOTE_FILENAME = Pattern.compile(
         "^Minutes of Meeting - (.+)\\.docx$",
         Pattern.CASE_INSENSITIVE);
-    private static final Instant DATASET_NOW = Instant.now();
+    private static final Pattern RELATIVE_TIMESTAMP = Pattern.compile(
+        "^WORKDAY-(\\d+)T(\\d{2}:\\d{2}:\\d{2})Z$");
+    private static final LocalDate LAST_COMPLETED_WORKDAY = previousWeekday(
+        Instant.now().atZone(ZoneOffset.UTC).toLocalDate().minusDays(1));
 
     public List<Contact> loadContacts() {
         return readCsv("users.csv").stream()
@@ -50,6 +56,27 @@ public class MockSourceDataLoader {
     public List<SourceItem> loadItems(String csvResource, SourceType sourceType) {
         return readCsv(csvResource).stream()
             .map(row -> toSourceItem(row, sourceType))
+            .toList();
+    }
+
+    public List<SourceItem> loadItemsForUser(String csvResource, SourceType sourceType, String userPrincipalName) {
+        var displayName = displayNameFor(userPrincipalName);
+        return loadItems(csvResource, sourceType).stream()
+            .filter(item -> isVisibleTo(item, sourceType, displayName))
+            .toList();
+    }
+
+    public List<SourceItem> loadEmailItemsForUser(String userPrincipalName) {
+        var displayName = displayNameFor(userPrincipalName);
+        var items = new ArrayList<>(loadItems("email.csv", SourceType.OUTLOOK));
+        items.addAll(loadMeetingNoteEmailItems());
+        return items.stream().filter(item -> isVisibleTo(item, SourceType.OUTLOOK, displayName)).toList();
+    }
+
+    public List<SourceItem> loadMeetingNoteItemsForUser(String userPrincipalName) {
+        var displayName = displayNameFor(userPrincipalName);
+        return loadMeetingNoteItems().stream()
+            .filter(item -> isVisibleTo(item, SourceType.MEETING_NOTES, displayName))
             .toList();
     }
 
@@ -258,10 +285,42 @@ public class MockSourceDataLoader {
     }
 
     private Instant parseTimestamp(String value) {
-        if (value.startsWith("NOW-")) {
-            return DATASET_NOW.minus(Duration.parse(value.substring("NOW-".length())));
+        var matcher = RELATIVE_TIMESTAMP.matcher(value);
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException("Mock timestamps must use WORKDAY-<offset>T<time>Z: " + value);
         }
-        throw new IllegalArgumentException("Mock data timestamps must use a relative NOW-PT<n>S token: " + value);
+        var workdayOffset = Integer.parseInt(matcher.group(1));
+        var date = LAST_COMPLETED_WORKDAY;
+        for (var index = 0; index < workdayOffset; index++) {
+            date = previousWeekday(date.minusDays(1));
+        }
+        return date.atTime(LocalTime.parse(matcher.group(2))).toInstant(ZoneOffset.UTC);
+    }
+
+    private String displayNameFor(String userPrincipalName) {
+        return readCsv("users.csv").stream()
+            .filter(row -> required(row, "userPrincipalName").equalsIgnoreCase(userPrincipalName))
+            .map(row -> required(row, "displayName"))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Mock data has no test user for principal name: " + userPrincipalName));
+    }
+
+    private boolean isVisibleTo(SourceItem item, SourceType sourceType, String displayName) {
+        if (sourceType == SourceType.TEAMS
+            && item.attributes().containsKey("team")
+            && item.attributes().containsKey("channel")) {
+            return true;
+        }
+        return item.senderOrOrganizer().equalsIgnoreCase(displayName)
+            || item.participants().stream().anyMatch(displayName::equalsIgnoreCase);
+    }
+
+    private static LocalDate previousWeekday(LocalDate date) {
+        while (date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            date = date.minusDays(1);
+        }
+        return date;
     }
 
     private boolean isTimestampField(String field) {

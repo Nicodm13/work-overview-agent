@@ -401,11 +401,17 @@ function Normalize-MailBody {
 
 function Resolve-DatasetTimestamp {
     param([string]$Value)
-    if ($Value -match '^NOW-(PT[0-9]+(?:\.[0-9]+)?S)$') {
-        $duration = [System.Xml.XmlConvert]::ToTimeSpan($Matches[1])
-        return $script:datasetNow.Subtract($duration).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    if ($Value -match '^WORKDAY-(\d+)T(\d{2}:\d{2}:\d{2})Z$') {
+        $workdayOffset = [int]$Matches[1]
+        $clockTime = $Matches[2]
+        $date = $script:lastCompletedWorkday
+        for ($index = 0; $index -lt $workdayOffset; $index++) {
+            do { $date = $date.AddDays(-1) }
+            while ($date.DayOfWeek -eq [DayOfWeek]::Saturday -or $date.DayOfWeek -eq [DayOfWeek]::Sunday)
+        }
+        return "$($date.ToString('yyyy-MM-dd'))T${clockTime}Z"
     }
-    throw "Dataset timestamp must use a relative NOW-PT<n>S token, received '$Value'."
+    throw "Dataset timestamp must use a relative WORKDAY-<offset>T<time>Z token, received '$Value'."
 }
 
 function Save-SeedState {
@@ -488,7 +494,10 @@ $script:statePath = Join-Path $PSScriptRoot 'test-seed-state.json'
 $script:seedState = Get-SeedState -Path $script:statePath -TenantId $tenantId
 Save-SeedState
 
-$script:datasetNow = [DateTimeOffset]::UtcNow
+$script:lastCompletedWorkday = [DateTime]::UtcNow.Date.AddDays(-1)
+while ($script:lastCompletedWorkday.DayOfWeek -eq [DayOfWeek]::Saturday -or $script:lastCompletedWorkday.DayOfWeek -eq [DayOfWeek]::Sunday) {
+    $script:lastCompletedWorkday = $script:lastCompletedWorkday.AddDays(-1)
+}
 $users = Import-Csv -LiteralPath (Join-Path $dataRoot 'users.csv')
 $emails = @(Import-Csv -LiteralPath (Join-Path $dataRoot 'email.csv'))
 $meetingNoteDirectory = Join-Path $dataRoot 'meeting-notes'
@@ -688,7 +697,7 @@ foreach ($chatId in @($conversationIds.Values | Sort-Object -Unique)) {
 $script:delegatedGraphToken = Get-DelegatedGraphToken -TenantId $tenantId -ClientId $clientId
 Clear-ActiveSeedChats -Conversations $conversations -ConversationIds $conversationIds
 
-$historyStart = $script:datasetNow.AddDays(-14).ToString('yyyy-MM-ddTHH:mm:ssZ')
+$historyStart = Resolve-DatasetTimestamp -Value 'WORKDAY-9T00:00:00Z'
 $channelMessages = @($messages | Where-Object { $_.team -and $_.channel })
 $channelMessageTotal = $channelMessages.Count
 $channelMessageIndex = 0

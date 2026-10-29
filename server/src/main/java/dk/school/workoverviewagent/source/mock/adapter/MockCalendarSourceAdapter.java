@@ -2,11 +2,11 @@ package dk.school.workoverviewagent.source.mock.adapter;
 
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.source.api.ISourceAdapter;
-import dk.school.workoverviewagent.source.contract.SourceItem;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
 import dk.school.workoverviewagent.source.contract.SourceResult;
 import dk.school.workoverviewagent.source.filter.SourceItemFilter;
 import dk.school.workoverviewagent.source.mock.MockSourceDataLoader;
+import dk.school.workoverviewagent.user.IUserProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
@@ -17,11 +17,16 @@ import java.util.List;
 class MockCalendarSourceAdapter implements ISourceAdapter {
 
     private final SourceItemFilter sourceItemFilter;
-    private final List<SourceItem> items;
+    private final MockSourceDataLoader dataLoader;
+    private final IUserProvider userProvider;
 
-    MockCalendarSourceAdapter(SourceItemFilter sourceItemFilter, MockSourceDataLoader dataLoader) {
+    MockCalendarSourceAdapter(
+        SourceItemFilter sourceItemFilter,
+        MockSourceDataLoader dataLoader,
+        IUserProvider userProvider) {
         this.sourceItemFilter = sourceItemFilter;
-        this.items = dataLoader.loadItems("calendar.csv", SourceType.CALENDAR);
+        this.dataLoader = dataLoader;
+        this.userProvider = userProvider;
     }
 
     @Override
@@ -31,6 +36,7 @@ class MockCalendarSourceAdapter implements ISourceAdapter {
 
     @Override
     public SourceResult load(SourceRequest request) {
+        var items = dataLoader.loadItemsForUser("calendar.csv", SourceType.CALENDAR, userProvider.getUserPrincipalName());
         return new SourceResult(SourceType.CALENDAR, sourceItemFilter.matching(request, items), List.of());
     }
 }
