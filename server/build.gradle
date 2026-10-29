@@ -84,11 +84,13 @@ tasks.register('seedGraphTestData', Exec) {
 
 tasks.register('clearGraphTestData', Exec) {
     group = 'microsoft 365 test data'
-    description = 'Deletes mailbox, calendar, chat, and Team data in the disposable Microsoft 365 sandbox.'
-    commandLine 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', graphTestDataCleanupScript,
+    description = 'Deletes mailbox and calendar items and purges Teams messages while preserving accounts and conversation containers. Use -PskipTeamsMessagePurge=true to skip an already completed Teams purge.'
+    def cleanupArgs = [
         '-Apply', '-RemoveAllMailboxAndCalendarItems', '-ConfirmCalendarCancellations',
-        '-RemoveAllChatsForListedUsers', '-ConfirmChatDeletion', '-RemoveAllTeamsAndChannelPosts',
-        '-ConfirmTeamAndGroupResourceDeletion', '-ConfirmSandboxTenant'
+        '-PurgeAllTeamsMessages', '-ConfirmPermanentTeamsPurge', '-ConfirmSandboxTenant'
+    ]
+    if (project.hasProperty('skipTeamsMessagePurge')) cleanupArgs << '-SkipTeamsMessagePurge'
+    commandLine(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', graphTestDataCleanupScript] + cleanupArgs)
 }
 
 def composeFile = layout.projectDirectory.file('compose.yaml').asFile.absolutePath

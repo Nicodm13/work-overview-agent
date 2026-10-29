@@ -38,54 +38,13 @@ function Get-GraphToken {
     return $token.access_token
 }
 
-function Get-DelegatedGraphToken {
-    param([string]$TenantId, [string]$ClientId)
-    if ($env:WORK_OVERVIEW_GRAPH_DELEGATED_ACCESS_TOKEN) {
-        return $env:WORK_OVERVIEW_GRAPH_DELEGATED_ACCESS_TOKEN
-    }
-
-    $deviceCode = Invoke-RestMethod -Method Post `
-        -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/devicecode" `
-        -ContentType 'application/x-www-form-urlencoded' `
-        -Body @{ client_id = $ClientId; scope = 'https://graph.microsoft.com/Chat.ReadWrite offline_access' }
-    Write-Host $deviceCode.message
-    $deadline = [DateTimeOffset]::UtcNow.AddSeconds([int]$deviceCode.expires_in)
-    $pollInterval = [Math]::Max(5, [int]$deviceCode.interval)
-    while ([DateTimeOffset]::UtcNow -lt $deadline) {
-        Start-Sleep -Seconds $pollInterval
-        try {
-            $token = Invoke-RestMethod -Method Post `
-                -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
-                -ContentType 'application/x-www-form-urlencoded' `
-                -Body @{
-                    grant_type = 'urn:ietf:params:oauth:grant-type:device_code'
-                    client_id = $ClientId
-                    device_code = $deviceCode.device_code
-                }
-            return $token.access_token
-        }
-        catch {
-            $details = $_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction SilentlyContinue
-            if ($details.error -eq 'authorization_pending') { continue }
-            if ($details.error -eq 'slow_down') { $pollInterval += 5; continue }
-            if ($details.error) {
-                throw "Delegated Chat.ReadWrite sign-in failed: $($details.error_description)"
-            }
-            throw
-        }
-    }
-    throw 'Delegated Chat.ReadWrite sign-in expired before it completed.'
-}
-
 function Invoke-Graph {
     param(
         [ValidateSet('GET', 'POST', 'PATCH', 'DELETE')][string]$Method,
         [string]$Uri,
-        [object]$Body,
-        [switch]$UseDelegatedToken
+        [object]$Body
     )
-    $accessToken = if ($UseDelegatedToken) { $script:delegatedGraphToken } else { $script:graphToken }
-    $headers = @{ Authorization = "Bearer $accessToken"; Prefer = 'IdType="ImmutableId"' }
+    $headers = @{ Authorization = "Bearer $script:graphToken"; Prefer = 'IdType="ImmutableId"' }
     $request = @{ Method = $Method; Uri = $Uri; Headers = $headers; UseBasicParsing = $true }
     if ($null -ne $Body) {
         $request.ContentType = 'application/json'
@@ -119,64 +78,22 @@ function Invoke-Graph {
 }
 
 function Get-AllGraphItems {
-    param([string]$Uri, [switch]$UseDelegatedToken)
+    param([string]$Uri)
     $items = [System.Collections.Generic.List[object]]::new()
     $next = $Uri
     while ($next) {
-        $page = (Invoke-Graph -Method GET -Uri $next -UseDelegatedToken:$UseDelegatedToken).Body
+        $page = (Invoke-Graph -Method GET -Uri $next).Body
         foreach ($item in $page.value) { $items.Add($item) }
         $next = $page.'@odata.nextLink'
     }
     return $items
 }
 
-function Clear-ActiveSeedChats {
-    param([object[]]$Conversations, [hashtable]$ConversationIds)
-    $identity = (Invoke-Graph -Method GET -Uri 'https://graph.microsoft.com/v1.0/me?$select=id,userPrincipalName' -UseDelegatedToken).Body
-    $seedUser = $users | Where-Object { $_.userPrincipalName -ieq $identity.userPrincipalName } | Select-Object -First 1
-    if (-not $seedUser) {
-        throw "Sign in with a user from mock-data/users.csv to clear that user's seeded chats. Signed-in user: $($identity.userPrincipalName)."
-    }
-    $activeChats = Get-AllGraphItems -Uri 'https://graph.microsoft.com/v1.0/me/chats?$top=50' -UseDelegatedToken
-    $activeChatIds = @{}
-    foreach ($chat in $activeChats) { $activeChatIds[$chat.id] = $true }
-    $expectedChatIds = @(
-        foreach ($conversation in $Conversations) {
-            $participants = @($conversation.participants -split '\|' | ForEach-Object { $_.Trim() })
-            if ($seedUser.displayName -in $participants) { $ConversationIds[$conversation.conversationId] }
-        }
-    )
-    $uniqueChatIds = @($expectedChatIds | Where-Object { $_ } | Sort-Object -Unique)
-    $script:clearedChatIds = @{}
-    foreach ($chatId in $uniqueChatIds) {
-        if (-not $activeChatIds.ContainsKey($chatId)) {
-            throw "Seed chat $chatId for signed-in user $($identity.userPrincipalName) is not visible in /me/chats, so its messages cannot be cleared."
-        }
-        $script:clearedChatIds[$chatId] = $true
-    }
-    $cleared = 0
-    foreach ($chatId in $uniqueChatIds) {
-        if (-not $activeChatIds.ContainsKey($chatId)) {
-            continue
-        }
-        $messages = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/me/chats/$([uri]::EscapeDataString($chatId))/messages?`$top=50&`$select=id,deletedDateTime,messageType" -UseDelegatedToken
-        foreach ($message in $messages) {
-            if (-not $message.id -or $message.deletedDateTime -or $message.messageType -and $message.messageType -ne 'message') { continue }
-            $messageId = [uri]::EscapeDataString($message.id)
-            $encodedChatId = [uri]::EscapeDataString($chatId)
-            Invoke-Graph -Method POST -Uri "https://graph.microsoft.com/v1.0/users/$($identity.id)/chats/$encodedChatId/messages/$messageId/softDelete" -UseDelegatedToken | Out-Null
-            $cleared++
-        }
-    }
-    $skipped = @($ConversationIds.Values | Where-Object { $_ -notin $uniqueChatIds } | Sort-Object -Unique).Count
-    Write-Output "Soft-deleted $cleared messages in $($identity.userPrincipalName)'s seeded chats; $skipped other dataset chats are outside that user's delegated scope."
-}
-
 function Ensure-SeedChatActive {
     param([string]$ChatId)
     $encodedChatId = [uri]::EscapeDataString($ChatId)
     try {
-        Invoke-Graph -Method GET -Uri "https://graph.microsoft.com/v1.0/chats/$encodedChatId?`$select=id" | Out-Null
+        Invoke-Graph -Method GET -Uri "https://graph.microsoft.com/v1.0/chats/${encodedChatId}?`$select=id" | Out-Null
     }
     catch {
         if ($_ -notmatch 'HTTP 404') { throw }
@@ -275,6 +192,16 @@ function Get-RecordHash {
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }
     finally { $sha.Dispose() }
+}
+
+function Resolve-SeedMessageTime {
+    param([string]$DatasetTimestamp, [object]$Saved)
+    $messageTime = [DateTimeOffset]::Parse($DatasetTimestamp).ToUniversalTime()
+    if ($Saved -and $Saved.timestamp) {
+        $previousTime = [DateTimeOffset]::Parse($Saved.timestamp).ToUniversalTime()
+        if ($previousTime -ge $messageTime) { return $previousTime.AddMilliseconds(1) }
+    }
+    return $messageTime
 }
 
 function Resolve-DatasetAttachment {
@@ -425,6 +352,7 @@ function Get-SeedState {
     param([string]$Path, [string]$TenantId)
     $state = @{
         schemaVersion = 2; tenantId = $TenantId; dataset = 'atlas-developer-platform-v1'; teamId = $null
+        teamProvisioning = $null
         legacyChatIds = @(); channelIds = @{}; conversationIds = @{}; teamsMessages = @{}; emails = @{}; events = @{}
     }
     if (Test-Path -LiteralPath $Path) {
@@ -433,6 +361,7 @@ function Get-SeedState {
             throw "Seed state belongs to tenant $($loaded.tenantId), not configured tenant $TenantId."
         }
         if ($loaded.teamId) { $state.teamId = $loaded.teamId }
+        if ($loaded.teamProvisioning) { $state.teamProvisioning = $loaded.teamProvisioning }
         if ($loaded.chatIds) { $state.legacyChatIds = @($loaded.chatIds) }
         if ($loaded.legacyChatIds) { $state.legacyChatIds = @($loaded.legacyChatIds) }
         foreach ($mapName in @('channelIds', 'conversationIds', 'teamsMessages', 'emails', 'events')) {
@@ -452,20 +381,65 @@ function Wait-TeamProvisioning {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     $lastStatus = 'unknown'
     for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-        $operation = (Invoke-Graph -Method GET -Uri $OperationUri).Body
+        # Graph says to wait more than 30 seconds between operation status checks.
+        # The first check also needs to wait because the operation can lag behind the 202 response.
+        Start-Sleep -Seconds $pollIntervalSeconds
+        try { $operation = (Invoke-Graph -Method GET -Uri $OperationUri).Body }
+        catch {
+            if ($_ -notmatch 'HTTP 404') { throw }
+            $lastStatus = 'operation not visible yet (HTTP 404)'
+            Write-TaskProgress -Activity 'Provisioning Microsoft Team' -Current $attempt -Total $maxAttempts -Status "$lastStatus; elapsed $([int]$stopwatch.Elapsed.TotalSeconds)s"
+            try {
+                $availableChannels = @(Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/teams/$TeamId/channels?`$select=id,displayName,description")
+                if ($availableChannels.Count -gt 0) {
+                    Write-Output "Team $TeamId is ready; its operation record is not available, but its channels are."
+                    Write-Progress -Id 1 -Activity 'Provisioning Microsoft Team' -Completed
+                    $script:seedState.teamProvisioning = $null
+                    Save-SeedState
+                    return
+                }
+            }
+            catch {
+                if ($_ -notmatch 'HTTP 404') { throw }
+            }
+            continue
+        }
         $lastStatus = $operation.status
         Write-TaskProgress -Activity 'Provisioning Microsoft Team' -Current $attempt -Total $maxAttempts -Status "$lastStatus; elapsed $([int]$stopwatch.Elapsed.TotalSeconds)s"
         if ($operation.status -eq 'succeeded') {
             Write-Progress -Id 1 -Activity 'Provisioning Microsoft Team' -Completed
+            $script:seedState.teamProvisioning = $null
+            Save-SeedState
             return
         }
         if ($operation.status -eq 'failed') {
             Write-Progress -Id 1 -Activity 'Provisioning Microsoft Team' -Completed
             throw "Team provisioning failed: $($operation.error.message)"
         }
+    }
+    throw "Timed out waiting for Microsoft Teams after $([int]$stopwatch.Elapsed.TotalMinutes) minutes. Team ID: $TeamId; operation ID: $OperationId; last status: $lastStatus. The Team may still be provisioning. Its IDs remain in seed state so a rerun can resume without creating a duplicate."
+}
+
+function Get-TeamChannelsWhenAvailable {
+    param([string]$TeamId)
+    $maxAttempts = 26
+    $pollIntervalSeconds = 35
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $lastStatus = 'unknown'
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        try {
+            $channels = @(Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/teams/$TeamId/channels?`$select=id,displayName,description")
+            if ($channels.Count -gt 0) { return ,$channels }
+            $lastStatus = 'no channels visible yet'
+        }
+        catch {
+            if ($_ -notmatch 'HTTP 404') { throw }
+            $lastStatus = 'Team channels not visible yet (HTTP 404)'
+        }
+        Write-TaskProgress -Activity 'Checking Microsoft Team readiness' -Current $attempt -Total $maxAttempts -Status "$lastStatus; elapsed $([int]$stopwatch.Elapsed.TotalSeconds)s"
         if ($attempt -lt $maxAttempts) { Start-Sleep -Seconds $pollIntervalSeconds }
     }
-    throw "Timed out waiting for Microsoft Teams after $([int]$stopwatch.Elapsed.TotalMinutes) minutes. Team ID: $TeamId; operation ID: $OperationId; last status: $lastStatus. The Team may still be provisioning."
+    throw "Team $TeamId is still unavailable after $([int]$stopwatch.Elapsed.TotalMinutes) minutes. Its ID remains in seed state to prevent creating a duplicate; confirm the Team's status before retrying. Last status: $lastStatus."
 }
 
 function Write-TaskProgress {
@@ -550,6 +524,7 @@ Write-Output "Chats: $($conversations.Count) (one-to-one and group)"
 Write-Output "Recent-window Teams messages: $($messages.Count)"
 Write-Output "Emails to reconcile: $($emails.Count) including $($meetingNotes.Count) meeting-minutes emails (new or corrected messages are sent; unchanged messages are skipped)"
 Write-Output "Calendar events to reconcile: $($events.Count); attendees can receive invitations or update notices"
+Write-Output 'Run Microsoft Graph - Clear Data first to purge the previous Teams messages while retaining the conversation IDs.'
 if (-not $clientId -or -not $clientSecret) { throw 'Set WORK_OVERVIEW_ENTRA_CLIENT_ID and WORK_OVERVIEW_ENTRA_CLIENT_SECRET in server/.env or the process environment.' }
 
 $script:graphToken = Get-GraphToken -TenantId $tenantId -ClientId $clientId -ClientSecret $clientSecret
@@ -578,15 +553,29 @@ $teamBody = @{
 }
 $teamId = $script:seedState.teamId
 if ($teamId) {
-    try { $existingChannels = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/teams/$teamId/channels?`$select=id,displayName,description" }
-    catch {
-        if ($_ -match 'HTTP 404') {
-            Write-Output "Recorded Team $teamId no longer exists; creating a replacement."
-            $teamId = $null
-            $script:seedState.teamId = $null
+    $pendingProvisioning = $script:seedState.teamProvisioning
+    if ($pendingProvisioning) {
+        if ($pendingProvisioning.teamId -ne $teamId) {
+            throw "Saved Team provisioning state refers to $($pendingProvisioning.teamId), but the saved Team ID is $teamId. Resolve the seed state before continuing."
+        }
+        try { $existingChannels = @(Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/teams/$teamId/channels?`$select=id,displayName,description") }
+        catch {
+            if ($_ -notmatch 'HTTP 404') { throw }
+            $existingChannels = @()
+        }
+        if ($existingChannels.Count -eq 0) {
+            Write-Output "Resuming Team provisioning operation $($pendingProvisioning.operationId) for Team $teamId."
+            Wait-TeamProvisioning -TeamId $teamId -OperationId $pendingProvisioning.operationId -OperationUri $pendingProvisioning.operationUri
+            $existingChannels = Get-TeamChannelsWhenAvailable -TeamId $teamId
+        }
+        else {
+            Write-Output "Team $teamId is already provisioned; clearing its saved pending operation."
+            $script:seedState.teamProvisioning = $null
             Save-SeedState
         }
-        else { throw }
+    }
+    else {
+        $existingChannels = Get-TeamChannelsWhenAvailable -TeamId $teamId
     }
 }
 if (-not $teamId) {
@@ -600,9 +589,11 @@ if (-not $teamId) {
     if ($operationLocation -notmatch "/teams\('[^']+'\)/operations\('([^']+)'\)") { throw 'Could not read the provisioning operation ID from the Graph Location response header.' }
     $operationId = $Matches[1]
     $operationUri = if ($operationLocation -match '^https?://') { $operationLocation } else { "https://graph.microsoft.com/v1.0$operationLocation" }
+    $script:seedState.teamProvisioning = @{ teamId = $teamId; operationId = $operationId; operationUri = $operationUri }
+    Save-SeedState
     Write-Output "Team creation accepted. Team ID: $teamId; operation ID: $operationId"
     Wait-TeamProvisioning -TeamId $teamId -OperationId $operationId -OperationUri $operationUri
-    $existingChannels = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/teams/$teamId/channels?`$select=id,displayName,description"
+    $existingChannels = Get-TeamChannelsWhenAvailable -TeamId $teamId
 }
 else { Write-Output "Reusing existing project Team: $teamId" }
 
@@ -694,9 +685,6 @@ foreach ($conversation in $conversations) {
 foreach ($chatId in @($conversationIds.Values | Sort-Object -Unique)) {
     Ensure-SeedChatActive -ChatId $chatId
 }
-$script:delegatedGraphToken = Get-DelegatedGraphToken -TenantId $tenantId -ClientId $clientId
-Clear-ActiveSeedChats -Conversations $conversations -ConversationIds $conversationIds
-
 $historyStart = Resolve-DatasetTimestamp -Value 'WORKDAY-9T00:00:00Z'
 $channelMessages = @($messages | Where-Object { $_.team -and $_.channel })
 $channelMessageTotal = $channelMessages.Count
@@ -705,7 +693,7 @@ $channelGroups = $channelMessages | Group-Object channel
 foreach ($group in $channelGroups) {
     $channelId = $channelIds[$group.Name]
     if (-not $channelId) { throw "Dataset refers to unknown channel '$($group.Name)'." }
-    $needsMigration = @($group.Group | Where-Object { $saved = $script:seedState.teamsMessages[$_.id]; -not $saved -or $saved.hash -ne (Get-RecordHash $_) }).Count -gt 0
+    $needsMigration = @($group.Group | Where-Object { $saved = $script:seedState.teamsMessages[$_.id]; -not $saved -or $saved.purged -or $saved.hash -ne (Get-RecordHash $_) }).Count -gt 0
     if (-not $needsMigration) {
         foreach ($item in $group.Group) { $channelMessageIndex++; Write-TaskProgress -Activity 'Importing channel messages' -Current $channelMessageIndex -Total $channelMessageTotal -Status "Unchanged | $($item.id)" }
         continue
@@ -714,13 +702,13 @@ foreach ($group in $channelGroups) {
     foreach ($item in ($group.Group | Sort-Object occurredAt)) {
         $itemHash = Get-RecordHash $item
         $saved = $script:seedState.teamsMessages[$item.id]
-        if ($saved -and $saved.hash -eq $itemHash) {
+        if ($saved -and -not $saved.purged -and $saved.hash -eq $itemHash) {
             $channelMessageIndex++
             Write-TaskProgress -Activity 'Importing channel messages' -Current $channelMessageIndex -Total $channelMessageTotal -Status "Unchanged | $($item.id)"
             continue
         }
         $author = $graphUsers[$item.senderOrOrganizer]
-        $messageTime = if ($saved -and $saved.timestamp) { [DateTimeOffset]::Parse($saved.timestamp).ToUniversalTime().AddMilliseconds(1) } else { [DateTimeOffset]::Parse($item.occurredAt).ToUniversalTime() }
+        $messageTime = Resolve-SeedMessageTime -DatasetTimestamp $item.occurredAt -Saved $saved
         if ($saved) { Write-Output "Dataset row $($item.id) changed; Teams migration messages are append-only, importing an updated version." }
         $supersededIds = @()
         if ($saved -and $saved.supersededGraphIds) { $supersededIds = @($saved.supersededGraphIds) }
@@ -750,8 +738,7 @@ $chatGroups = $chatMessages | Group-Object conversationId
 foreach ($group in $chatGroups) {
     $chatId = $conversationIds[$group.Name]
     if (-not $chatId) { throw "Dataset refers to unknown conversation '$($group.Name)'." }
-    $chatWasCleared = $script:clearedChatIds.ContainsKey($chatId)
-    $needsMigration = $chatWasCleared -or @($group.Group | Where-Object { $saved = $script:seedState.teamsMessages[$_.id]; -not $saved -or $saved.hash -ne (Get-RecordHash $_) }).Count -gt 0
+    $needsMigration = @($group.Group | Where-Object { $saved = $script:seedState.teamsMessages[$_.id]; -not $saved -or $saved.purged -or $saved.hash -ne (Get-RecordHash $_) }).Count -gt 0
     if (-not $needsMigration) {
         foreach ($item in $group.Group) { $chatMessageIndex++; Write-TaskProgress -Activity 'Importing chat messages' -Current $chatMessageIndex -Total $chatMessageTotal -Status "Unchanged | $($item.id)" }
         if ($group.Name -in @('project-room', 'platform-working-group', 'product-delivery-group', 'quality-release-group', 'data-api-group')) {
@@ -765,13 +752,13 @@ foreach ($group in $chatGroups) {
     foreach ($item in ($group.Group | Sort-Object occurredAt)) {
         $itemHash = Get-RecordHash $item
         $saved = $script:seedState.teamsMessages[$item.id]
-        if (-not $chatWasCleared -and $saved -and $saved.hash -eq $itemHash) {
+        if ($saved -and -not $saved.purged -and $saved.hash -eq $itemHash) {
             $chatMessageIndex++
             Write-TaskProgress -Activity 'Importing chat messages' -Current $chatMessageIndex -Total $chatMessageTotal -Status "Unchanged | $($item.id)"
             continue
         }
         $author = $graphUsers[$item.senderOrOrganizer]
-        $messageTime = if ($saved -and $saved.timestamp) { [DateTimeOffset]::Parse($saved.timestamp).ToUniversalTime().AddMilliseconds(1) } else { [DateTimeOffset]::Parse($item.occurredAt).ToUniversalTime() }
+        $messageTime = Resolve-SeedMessageTime -DatasetTimestamp $item.occurredAt -Saved $saved
         if ($saved) { Write-Output "Dataset row $($item.id) changed; Teams migration messages are append-only, importing an updated version." }
         $supersededIds = @()
         if ($saved -and $saved.supersededGraphIds) { $supersededIds = @($saved.supersededGraphIds) }

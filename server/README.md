@@ -68,8 +68,8 @@ repository:
 
 Run `Docker - Start Database` before `Start MCP Server`. The old generic `Application` run
 configuration is not shared. Use `Tests - Run` to execute the full Gradle test suite from IntelliJ. The two Microsoft
-Graph configurations seed or clear data in the disposable sandbox; `Microsoft Graph - Clear Data` permanently deletes scoped data
-and associated Team group resources.
+Graph configurations seed or clear data in the disposable sandbox; `Microsoft Graph - Clear Data` removes mailbox and
+calendar items and permanently purges Teams messages while preserving the user accounts and chat/team/channel containers.
 
 The live source mode calls Microsoft Graph using the signed-in user's delegated token. It reads
 Outlook messages, default-calendar events, Teams chats, channel posts and returned thread replies
@@ -177,6 +177,7 @@ The MCP source adapters and action delivery use delegated Microsoft Graph permis
 
 - `Mail.Read` for Outlook email and DOCX meeting-minute attachments.
 - `Calendars.Read` for calendar events and shared free/busy availability with the `find_meeting_times` MCP tool.
+- `User.Read` for the signed-in user's `/me` profile used when checking meeting availability.
 - `Chat.Read` for the signed-in user's Teams chats.
 - `Team.ReadBasic.All` for listing teams the signed-in user belongs to.
 - `Channel.ReadBasic.All` for listing accessible channels in those teams.
@@ -205,17 +206,52 @@ authority. It never uses application permissions. When Entra reports missing Gra
 denies source access, the review reports source-specific guidance without exposing token details or
 raw Graph error responses. Other source failures remain generic limitations.
 
-The test-data seed script is a separate app-only client-credentials flow. It uses the same sandbox app
-registration's client ID and secret, but only for the script's Graph writes and historical Teams import. The MCP server
-continues to call Graph through its delegated on-behalf-of flow. Remove the temporary application permissions and
-admin consent after seeding is complete.
+The test-data scripts use app-only client credentials from the sandbox app registration. These
+application permissions are separate from the delegated permissions used by the MCP server. Grant
+admin consent for the following application permissions while running the scripts:
 
-Before importing refreshed Teams messages, the seed script also requests delegated `Chat.ReadWrite` through device-code
-sign-in and soft-deletes existing messages in the signed-in dataset user's seeded chats. The chats remain active and
-are reused for the new messages. Enable public client flows on the sandbox app registration for device-code sign-in,
-or set `WORK_OVERVIEW_GRAPH_DELEGATED_ACCESS_TOKEN` to a current delegated token with `Chat.ReadWrite`. Sign in as
-the same dataset user whose chat history the MCP client will review. Mock source timestamps are rebased into the same
-14-day window when the mock source loader starts.
+| Application permission | Used by | Purpose |
+| --- | --- | --- |
+| `User.Read.All` | Seed | Resolve the 17 test users and their Graph IDs. |
+| `Team.Create` | Seed | Create the seeded team. |
+| `Team.ReadBasic.All` | Seed and Clear | Find teams while seeding and check for existing channel messages before Purview cleanup. |
+| `Channel.Create` | Seed | Create seeded team channels. |
+| `Channel.ReadBasic.All` | Seed and Clear | Find existing channels and enumerate channels for the Clear Data precheck. |
+| `ChannelMessage.Read.All` | Clear | Check whether active channel messages remain before starting a Purview search. The Clear Data script uses app-only authentication; the delegated grant above does not cover it. |
+| `TeamMember.ReadWriteNonOwnerRole.All` | Seed | Add test users to the seeded team. |
+| `Chat.Create` | Seed | Create seeded group and one-to-one chats. |
+| `Chat.Read.All` | Seed and Clear | Inspect existing chats and check for active chat messages. |
+| `ChatMember.ReadWrite.All` | Seed | Set the intended membership of seeded chats. |
+| `Chat.ManageDeletion.All` | Seed | Restore a soft-deleted seeded chat when it needs reuse. |
+| `Teamwork.Migrate.All` | Seed | Import historical chat and channel messages with their seeded authors and timestamps. |
+| `Mail.ReadWrite` | Seed and Clear | Find, create, update, and delete seeded mailbox messages. |
+| `Mail.Send` | Seed | Send seeded email messages. |
+| `Calendars.ReadWrite` | Seed and Clear | Create seeded calendar events and remove events during cleanup. |
+| `eDiscovery.Read.All` | Clear | Create and estimate the Teams-message search and poll its operations. |
+| `eDiscovery.ReadWrite.All` | Clear | Create Purview cases/searches and purge Teams messages. |
+
+`Group.ReadWrite.All` is not required by these scripts and does not replace
+`ChannelMessage.Read.All` for the Clear Data channel-message check. The channel-message API requires
+`ChannelMessage.Read.All` (or resource-specific `ChannelMessage.Read.Group` where the app is granted
+access to the specific team); the current precheck scans channels across the sandbox.
+
+Run `Microsoft Graph - Clear Data` before `Microsoft Graph - Seed Data` when starting a fresh test run.
+Clear Data first checks for active messages in chats and channels using Graph. If none are found, it
+skips the Purview search; otherwise, it uses app-only eDiscovery to purge Teams messages while
+preserving chat/team/channel containers and their IDs. The Graph check needs the application
+permissions listed above. Use `-PskipTeamsMessagePurge=true` only when a previous Purview purge has
+already been verified and you want Clear Data to proceed directly to mailbox/calendar cleanup.
+
+Purview requires an eDiscovery Premium-enabled case and the app service principal registered in the
+Purview `eDiscoveryManager` role and as an eDiscovery case admin. A Teams purge is limited to 100
+messages per mailbox per request. Clear Data waits for the Purview operation and retries transient
+Graph errors while polling; it does not treat an immediate post-purge search estimate as proof of
+failure because indexed compliance copies can remain after user-visible messages are removed. The
+Graph Teams source adapter ignores messages with `deletedDateTime`. Mock source timestamps are rebased
+into the same 14-day window when the mock source loader starts.
+
+Remove the temporary application permissions and admin consent when the sandbox seed/clear scripts
+are no longer needed.
 
 ## Notes
 
