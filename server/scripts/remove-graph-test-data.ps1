@@ -3,9 +3,7 @@ param(
     [switch]$Apply,
     [switch]$RemoveAllMailboxAndCalendarItems,
     [switch]$ConfirmCalendarCancellations,
-    [switch]$PurgeAllTeamsMessages,
-    [switch]$ConfirmPermanentTeamsPurge,
-    [switch]$SkipTeamsMessagePurge,
+    [switch]$ConfirmTeamsMessageDeletion,
     [switch]$ConfirmSandboxTenant
 )
 
@@ -34,8 +32,8 @@ function Get-GraphToken {
 }
 
 function Invoke-Graph {
-    param([ValidateSet('GET', 'POST', 'DELETE')][string]$Method, [string]$Uri, [object]$Body)
-    $requestParameters = @{ UseBasicParsing = $true; Method = $Method; Uri = $Uri; Headers = @{ Authorization = "Bearer $script:graphToken" } }
+    param([ValidateSet('GET', 'POST', 'DELETE')][string]$Method, [string]$Uri, [object]$Body, [string]$AccessToken = $script:graphToken)
+    $requestParameters = @{ UseBasicParsing = $true; Method = $Method; Uri = $Uri; Headers = @{ Authorization = "Bearer $AccessToken" } }
     if ($PSBoundParameters.ContainsKey('Body')) {
         $requestParameters.ContentType = 'application/json'
         $requestParameters.Body = ConvertTo-Json -InputObject $Body -Depth 20 -Compress
@@ -67,78 +65,6 @@ function Invoke-Graph {
     return [pscustomobject]@{ Body = $parsed; StatusCode = [int]$response.StatusCode; Headers = $response.Headers }
 }
 
-function Wait-PurviewOperation {
-    param([string]$OperationUri, [string]$Label)
-    if ($OperationUri.StartsWith('/')) { $OperationUri = "https://graph.microsoft.com$OperationUri" }
-    $deadline = (Get-Date).AddMinutes(45)
-    $pollFailures = 0
-    do {
-        Start-Sleep -Seconds 10
-        try {
-            $operation = (Invoke-Graph -Method GET -Uri $OperationUri).Body
-            $pollFailures = 0
-        }
-        catch {
-            if ($_ -match 'HTTP (429|500|502|503|504)') {
-                $pollFailures++
-                [Console]::Out.WriteLine("$Label status check returned a temporary Graph error; retrying ($pollFailures). $_")
-                [Console]::Out.Flush()
-                continue
-            }
-            throw
-        }
-        $status = [string]$operation.status
-        [Console]::Out.WriteLine("$Label status: $status ($($operation.percentProgress)%)")
-        [Console]::Out.Flush()
-        if ($status -in @('succeeded', 'partiallySucceeded', 'failed', 'submissionFailed')) { return $operation }
-    } while ((Get-Date) -lt $deadline)
-    throw "$Label did not finish within 45 minutes. Check the Purview operation before rerunning Clear Data."
-}
-
-function Invoke-TeamsMessagePurge {
-    param()
-    $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ')
-    $createdCase = Invoke-Graph -Method POST -Uri 'https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases' -Body @{
-        displayName = "WorkOverviewSandboxCleanup-$stamp"
-        description = 'Teams-message purge for the disposable Work Overview test sandbox.'
-    }
-    $caseId = $createdCase.Body.id
-    if (-not $caseId) { throw 'Microsoft Purview did not return an eDiscovery case ID.' }
-
-    $search = Invoke-Graph -Method POST -Uri "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/$caseId/searches" -Body @{
-        displayName = "WorkOverviewTeamsCleanup-$stamp"
-        description = 'Find Teams instant messages across sandbox mailboxes before permanent purge.'
-        contentQuery = 'kind:microsoftteams'
-        dataSourceScopes = 'allTenantMailboxes'
-    }
-    $searchId = $search.Body.id
-    if (-not $searchId) { throw 'Microsoft Purview did not return an eDiscovery search ID.' }
-    Write-Output "Purview case: $caseId"
-    Write-Output "Purview Teams-message search: $searchId (kind:microsoftteams; all tenant mailboxes)"
-
-    $estimate = Invoke-Graph -Method POST -Uri "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/$caseId/searches/$searchId/estimateStatistics" -Body @{
-        statisticsOptions = 'includeRefiners, includeQueryStats'
-    }
-    $estimateLocation = [string]$estimate.Headers['Location']
-    if (-not $estimateLocation) { throw 'Microsoft Purview did not return the estimate operation Location header.' }
-    $estimateResult = Wait-PurviewOperation -OperationUri $estimateLocation -Label 'Purview Teams-message search estimate'
-    if ($estimateResult.status -ne 'succeeded') { throw "Purview search estimate ended with status '$($estimateResult.status)'. No Teams purge was submitted." }
-    Write-Output "Estimated matching items: $($estimateResult.indexedItemCount); mailboxes with hits: $($estimateResult.mailboxCount)"
-
-    $purge = Invoke-Graph -Method POST -Uri "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/$caseId/searches/$searchId/purgeData" -Body @{
-        purgeType = 'permanentlyDelete'
-        purgeAreas = 'teamsMessages'
-    }
-    $purgeLocation = [string]$purge.Headers['Location']
-    if (-not $purgeLocation) { throw 'Microsoft Purview accepted no purge operation Location header; check the case before rerunning.' }
-    $purgeResult = Wait-PurviewOperation -OperationUri $purgeLocation -Label 'Purview Teams-message purge'
-    if ($purgeResult.status -ne 'succeeded') {
-        throw "Purview Teams-message purge ended with status '$($purgeResult.status)'. Review its operation report before rerunning; Graph purges at most 100 items per mailbox per request."
-    }
-    Write-Output 'Purview Teams-message purge operation succeeded. The immediate search estimate is not used as a deletion check because indexed search results can remain after the purge completes.'
-    Write-Output 'Chat, team, and channel containers were preserved.'
-}
-
 function Get-AllGraphItems {
     param([string]$Uri)
     $items = [System.Collections.Generic.List[object]]::new()
@@ -151,57 +77,160 @@ function Get-AllGraphItems {
     return $items
 }
 
-function Test-ActiveTeamsMessages {
-    param([object[]]$Users)
+function Test-AdminDeletedTeamsMessage {
+    param([object]$Message)
 
-    $checkedChats = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-    foreach ($user in $Users) {
-        $upn = [uri]::EscapeDataString($user.userPrincipalName)
-        $chats = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/users/$upn/chats?`$select=id&`$top=50"
-        foreach ($chat in $chats) {
-            if (-not $checkedChats.Add([string]$chat.id)) { continue }
-            $chatId = [uri]::EscapeDataString([string]$chat.id)
-            $messages = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/chats/$chatId/messages?`$select=id,deletedDateTime,messageType&`$top=50"
-            foreach ($message in $messages) {
-                if ($message.messageType -eq 'message' -and -not $message.deletedDateTime) {
-                    [Console]::Out.WriteLine("Active Teams chat messages found in chat $($chat.id). Purview cleanup is required.")
-                    [Console]::Out.Flush()
-                    return $true
-                }
-            }
+    $content = [string]$Message.body.content
+    if (-not $content) { return $false }
+
+    $plainText = [System.Net.WebUtility]::HtmlDecode(($content -replace '<[^>]+>', ' '))
+    $plainText = [regex]::Replace($plainText, '\s+', ' ').Trim().TrimEnd('.')
+    return $plainText -match '^(?i:this message was deleted by an admin|this message was deleted by an administrator|an admin deleted this message|an administrator deleted this message|denne meddelelse blev slettet af en administrator|denne besked blev slettet af en administrator)$'
+}
+
+function Test-ReadableTeamsMessage {
+    param([object]$Message)
+
+    return $Message.messageType -eq 'message' -and
+        -not $Message.deletedDateTime -and
+        -not (Test-AdminDeletedTeamsMessage -Message $Message)
+}
+
+function Get-TeamsMessageTargets {
+    param([object[]]$Chats)
+    $targets = [Collections.Generic.List[object]]::new()
+    foreach ($chat in $Chats) {
+        $chatId = [uri]::EscapeDataString([string]$chat.Id)
+        $uri = "https://graph.microsoft.com/v1.0/chats/$chatId/messages"
+        foreach ($message in (Get-AllGraphItems -Uri "$uri`?`$top=50")) {
+            if (-not (Test-ReadableTeamsMessage -Message $message)) { continue }
+            $messageId = [uri]::EscapeDataString([string]$message.id)
+            $authorId = [string]$message.from.user.id
+            $targets.Add(@{ AuthorId = $authorId; ReadUri = "$uri/$messageId"; DeleteUri = "https://graph.microsoft.com/v1.0/users/$authorId/chats/$chatId/messages/$messageId/softDelete" })
         }
     }
-
-    $teams = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/teams?`$select=id&`$top=100"
-    foreach ($team in $teams) {
+    foreach ($team in (Get-AllGraphItems -Uri 'https://graph.microsoft.com/v1.0/teams?$select=id&$top=100')) {
         $teamId = [uri]::EscapeDataString([string]$team.id)
-        $channels = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/teams/$teamId/channels?`$select=id"
-        foreach ($channel in $channels) {
+        foreach ($channel in (Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/teams/$teamId/channels?`$select=id")) {
             $channelId = [uri]::EscapeDataString([string]$channel.id)
-            $messages = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/teams/$teamId/channels/$channelId/messages?`$select=id,deletedDateTime,messageType&`$top=50"
-            foreach ($message in $messages) {
-                if ($message.messageType -eq 'message' -and -not $message.deletedDateTime) {
-                    [Console]::Out.WriteLine("Active Teams channel messages found in channel $($channel.id). Purview cleanup is required.")
-                    [Console]::Out.Flush()
-                    return $true
-                }
+            $uri = "https://graph.microsoft.com/v1.0/teams/$teamId/channels/$channelId/messages"
+            foreach ($message in (Get-AllGraphItems -Uri "$uri`?`$top=50")) {
+                if (-not (Test-ReadableTeamsMessage -Message $message)) { continue }
+                $messageId = [uri]::EscapeDataString([string]$message.id)
+                $targets.Add(@{ AuthorId = [string]$message.from.user.id; ReadUri = "$uri/$messageId"; DeleteUri = "$uri/$messageId/softDelete" })
             }
         }
     }
+    return $targets
+}
 
-    return $false
+function Get-DelegatedGraphSession {
+    param([object]$User)
+    $password = [Environment]::GetEnvironmentVariable('WORK_OVERVIEW_TEST_USER_PASSWORD')
+    if (-not $password) { throw 'Set WORK_OVERVIEW_TEST_USER_PASSWORD in server/.env to the shared sandbox test-account password.' }
+    try {
+        $response = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token" -ContentType 'application/x-www-form-urlencoded' -Body @{
+            client_id = $clientId; client_secret = $clientSecret; grant_type = 'password'
+            username = $User.userPrincipalName; password = $password
+            scope = 'https://graph.microsoft.com/Chat.ReadWrite https://graph.microsoft.com/ChannelMessage.ReadWrite https://graph.microsoft.com/User.Read'
+        }
+    }
+    catch { throw "Delegated Graph sign-in failed for $($User.userPrincipalName). Check the password, consent for Chat.ReadWrite and ChannelMessage.ReadWrite, and the account's sign-in policy." }
+    finally { $password = $null }
+    if (-not $response.access_token) { throw "Delegated Graph sign-in returned no token for $($User.userPrincipalName)." }
+    $me = (Invoke-Graph -Method GET -Uri 'https://graph.microsoft.com/v1.0/me?$select=id' -AccessToken $response.access_token).Body
+    if ([string]$me.id -ne [string]$User.id) { throw "Delegated token identity differs from test user $($User.userPrincipalName)." }
+    return @{ AccessToken = $response.access_token; ExpiresAt = (Get-Date).AddSeconds([int]$response.expires_in) }
+}
+
+function Remove-TeamsMessages {
+    param([object[]]$Targets, [object[]]$Users)
+    if ($Targets.Count -eq 0) { Write-Output 'Teams messages: none found.'; return }
+    $usersById = @{}
+    foreach ($user in $Users) {
+        $graphUser = (Invoke-Graph -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$([uri]::EscapeDataString($user.userPrincipalName))?`$select=id").Body
+        $usersById[[string]$graphUser.id] = @{ id = $graphUser.id; userPrincipalName = $user.userPrincipalName }
+    }
+    $sessions = @{}
+    foreach ($authorId in @($Targets | ForEach-Object { $_.AuthorId } | Sort-Object -Unique)) {
+        if (-not $usersById.ContainsKey($authorId)) { throw "Teams message author $authorId is outside the configured test users; cleanup stopped before deletion." }
+        $sessions[$authorId] = Get-DelegatedGraphSession -User $usersById[$authorId]
+    }
+    Write-Output "Teams messages: deleting $($Targets.Count) messages as their authors."
+    $index = 0
+    foreach ($target in $Targets) {
+        $session = $sessions[$target.AuthorId]
+        if ($session.ExpiresAt -lt (Get-Date).AddMinutes(5)) {
+            $session = Get-DelegatedGraphSession -User $usersById[$target.AuthorId]
+            $sessions[$target.AuthorId] = $session
+        }
+        $current = (Invoke-Graph -Method GET -Uri $target.ReadUri).Body
+        if (Test-ReadableTeamsMessage -Message $current) {
+            Invoke-Graph -Method POST -Uri $target.DeleteUri -AccessToken $session.AccessToken | Out-Null
+        }
+        $index++
+        Write-TaskProgress -Activity 'Deleting Teams messages' -Current $index -Total $Targets.Count -Status $target.AuthorId
+    }
+    foreach ($target in $Targets) {
+        $remaining = (Invoke-Graph -Method GET -Uri $target.ReadUri).Body
+        if (Test-ReadableTeamsMessage -Message $remaining) { throw "Teams message $($target.ReadUri) remains readable after delegated deletion. Mailbox and calendar cleanup was stopped." }
+    }
+    Write-Output 'Teams messages: verified deleted.'
+}
+
+function Remove-SeededChats {
+    $statePath = Join-Path $PSScriptRoot 'test-seed-state.json'
+    if (-not (Test-Path -LiteralPath $statePath)) { throw 'Seed state is missing; refusing to delete chats that cannot be tied to the seeded dataset.' }
+    $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    if ($state.tenantId -and $state.tenantId -ne $tenantId) { throw 'Seed state belongs to a different tenant; refusing to delete chats.' }
+    $chatIds = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($property in $state.conversationIds.PSObject.Properties) {
+        $id = [string]$property.Value
+        if (-not [string]::IsNullOrWhiteSpace($id)) { [void]$chatIds.Add($id) }
+    }
+    $legacyChatIds = @()
+    if ($state.legacyChatIds -is [System.Management.Automation.PSCustomObject]) {
+        $legacyChatIds = @($state.legacyChatIds.PSObject.Properties | ForEach-Object { $_.Value })
+    }
+    elseif ($null -ne $state.legacyChatIds) {
+        $legacyChatIds = @($state.legacyChatIds)
+    }
+    foreach ($id in $legacyChatIds) {
+        if ($id -is [string] -and -not [string]::IsNullOrWhiteSpace($id)) { [void]$chatIds.Add($id) }
+    }
+    if ($chatIds.Count -eq 0) { Write-Output 'Seeded chats: none recorded.'; return }
+
+    Write-Output "Seeded chats: soft-deleting $($chatIds.Count) conversations."
+    $index = 0
+    foreach ($chatId in $chatIds) {
+        $encodedId = [uri]::EscapeDataString($chatId)
+        $chatUri = "https://graph.microsoft.com/v1.0/chats/$encodedId"
+        $exists = $true
+        try { Invoke-Graph -Method GET -Uri "$chatUri`?`$select=id" | Out-Null }
+        catch { if ($_ -match 'HTTP 404') { $exists = $false } else { throw } }
+        if ($exists) {
+            Invoke-Graph -Method DELETE -Uri $chatUri | Out-Null
+            Start-Sleep -Milliseconds 1100
+        }
+        try {
+            Invoke-Graph -Method GET -Uri "$chatUri`?`$select=id" | Out-Null
+            throw "Seeded chat $chatId is still active after deletion; stopping before mailbox and calendar cleanup."
+        }
+        catch { if ($_ -notmatch 'HTTP 404') { throw } }
+        $index++
+        Write-TaskProgress -Activity 'Deleting seeded chats' -Current $index -Total $chatIds.Count -Status $chatId
+    }
+    Write-Output "Seeded chats: verified $($chatIds.Count) are soft-deleted."
 }
 
 function Write-TaskProgress {
     param([string]$Activity, [int]$Current, [int]$Total, [string]$Status, [int]$Id = 1)
     if ($Total -le 0) { return }
     $percent = [int][Math]::Floor(($Current * 100) / $Total)
-    Write-Progress -Id $Id -Activity $Activity -Status "$Status ($Current/$Total)" -PercentComplete $percent
+    Write-Progress -Id $Id -Activity $Activity -Status "$percent%" -PercentComplete $percent
     $reportInterval = [Math]::Max(1, [Math]::Ceiling($Total / 10.0))
     if ($Current -eq 1 -or $Current -eq $Total -or $Current % $reportInterval -eq 0) {
-        $filled = [int][Math]::Floor($percent / 5)
-        $bar = ('#' * $filled).PadRight(20, '-')
-        Write-Output ("{0} [{1}] {2,3}% ({3}/{4}) {5}" -f $Activity, $bar, $percent, $Current, $Total, $Status)
+        Write-Output ("{0}: {1}%" -f $Activity, $percent)
     }
     if ($Current -ge $Total) { Write-Progress -Id $Id -Activity $Activity -Completed }
 }
@@ -216,16 +245,15 @@ if (-not $clientId -or -not $clientSecret) { throw 'Set WORK_OVERVIEW_ENTRA_CLIE
 if ($Apply -and (
     -not $RemoveAllMailboxAndCalendarItems -or
     -not $ConfirmCalendarCancellations -or
-    (-not $SkipTeamsMessagePurge -and (-not $PurgeAllTeamsMessages -or -not $ConfirmPermanentTeamsPurge)) -or
+    -not $ConfirmTeamsMessageDeletion -or
     -not $ConfirmSandboxTenant
 )) {
-    throw 'Apply requires the mailbox/calendar switches and -ConfirmSandboxTenant. Teams purge additionally requires -PurgeAllTeamsMessages and -ConfirmPermanentTeamsPurge unless -SkipTeamsMessagePurge is specified.'
+    throw 'Apply requires the mailbox/calendar switches and -ConfirmSandboxTenant. Teams deletion additionally requires -ConfirmTeamsMessageDeletion.'
 }
 
 $users = Import-Csv -LiteralPath (Join-Path $dataRoot 'users.csv')
-Write-Output "Target tenant: $tenantId"
-Write-Output "Accounts in scope: $($users.Count) (listed in mock-data/users.csv)"
-if (-not $Apply) { Write-Output 'Preview only. Apply requires the explicit mailbox, chat, and team deletion switches documented in server/README.md.' }
+Write-Output "Cleanup: $($users.Count) test accounts"
+if (-not $Apply) { Write-Output 'Preview only; no data was changed.' }
 $script:graphToken = Get-GraphToken -TenantId $tenantId -ClientId $clientId -ClientSecret $clientSecret
 
 $messageTargets = [System.Collections.Generic.List[object]]::new()
@@ -257,33 +285,14 @@ foreach ($user in $users) {
     $userIndex++
     Write-TaskProgress -Activity 'Scanning user mailboxes and calendars' -Current $userIndex -Total $users.Count -Status $user.userPrincipalName
 }
-Write-Output "Mailbox messages in scope: $($messageTargets.Count)"
-Write-Output "Calendar events in scope: $($eventTargets.Count)"
-Write-Output "Read-only calendars skipped: $($readOnlyCalendars.Count)"
-Write-Output "Unique active chats involving the listed users (will be preserved): $($chatTargets.Count)"
-Write-Output 'Calendar items to delete:'
-foreach ($item in $eventTargets) { Write-Output "  $($item.User) | $($item.Calendar) | $($item.Subject)" }
-if ($readOnlyCalendars.Count -gt 0) {
-    Write-Output 'Read-only calendars skipped (Graph does not allow event deletion):'
-    foreach ($calendar in $readOnlyCalendars) { Write-Output "  $($calendar.User) | $($calendar.Name)" }
-}
-Write-Output 'Chat containers to preserve:'
-foreach ($chat in $chatTargets.Values) { Write-Output "  $($chat.Type) | $($chat.Topic) | $($chat.Id)" }
-Write-Output 'This cleanup scope is all mail and all events in writable calendars in the 17 listed mailboxes, including Microsoft preloaded sample content. Read-only calendars are skipped.'
-Write-Output 'Teams-message purge scope is all tenant mailboxes in the disposable sandbox. It permanently purges matching Teams messages and keeps chat, team, and channel containers so test chats can be reused.'
-Write-Output 'Microsoft Purview app-only setup requires eDiscovery.Read.All and eDiscovery.ReadWrite.All application permissions, an eDiscovery Premium-enabled case, and the app service principal registered in Purview eDiscovery roles.'
-Write-Output 'The purge API processes at most 100 Teams messages per mailbox per request.'
+Write-Output "Found $($messageTargets.Count) emails, $($eventTargets.Count) calendar events, and $($chatTargets.Count) chats."
+if ($readOnlyCalendars.Count -gt 0) { Write-Output "Skipping $($readOnlyCalendars.Count) read-only calendars." }
 if (-not $Apply) { return }
 
-if ($SkipTeamsMessagePurge) {
-    Write-Output 'Skipping Teams-message purge because it was already completed and verified separately.'
-}
-elseif (-not (Test-ActiveTeamsMessages -Users $users)) {
-    Write-Output 'No active Teams chat or channel messages were found through Microsoft Graph; skipping the Purview search and purge.'
-}
-else {
-    Invoke-TeamsMessagePurge
-}
+Write-Output 'Teams messages: delegated deletion will run after test-user sign-in preflight.'
+$teamsTargets = Get-TeamsMessageTargets -Chats $chatTargets.Values
+Remove-TeamsMessages -Targets $teamsTargets -Users $users
+Remove-SeededChats
 
 $messageIndex = 0
 foreach ($item in $messageTargets) {
@@ -306,7 +315,14 @@ $seedStatePath = Join-Path $PSScriptRoot 'test-seed-state.json'
 if (Test-Path -LiteralPath $seedStatePath) {
     $loadedState = Get-Content -LiteralPath $seedStatePath -Raw | ConvertFrom-Json
     $datasetName = if ($loadedState.dataset) { $loadedState.dataset } else { 'atlas-developer-platform-v1' }
-    $savedLegacyChatIds = if ($loadedState.legacyChatIds) { @($loadedState.legacyChatIds) } elseif ($loadedState.chatIds) { @($loadedState.chatIds) } else { @() }
+    $legacyChatSource = $loadedState.legacyChatIds
+    if ($null -eq $legacyChatSource) { $legacyChatSource = $loadedState.chatIds }
+    if ($legacyChatSource -is [System.Management.Automation.PSCustomObject]) {
+        $legacyChatSource = @($legacyChatSource.PSObject.Properties | ForEach-Object { $_.Value })
+    }
+    $savedLegacyChatIds = @($legacyChatSource | Where-Object {
+        $_ -is [string] -and -not [string]::IsNullOrWhiteSpace($_)
+    })
     $preservedState = @{
         schemaVersion = 2
         tenantId = $tenantId
@@ -337,6 +353,6 @@ if (Test-Path -LiteralPath $seedStatePath) {
     $tempStatePath = "$seedStatePath.tmp"
     $preservedState | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $tempStatePath -Encoding UTF8
     Move-Item -LiteralPath $tempStatePath -Destination $seedStatePath -Force
-    Write-Output 'Seed state reset: existing Team, channel, and chat IDs retained; old message, email, and event IDs cleared.'
+    Write-Output 'Seed state reset.'
 }
-Write-Output 'Mailbox, calendar, and Teams-message cleanup completed. User accounts and chat/team/channel containers were preserved.'
+Write-Output 'Cleanup complete.'

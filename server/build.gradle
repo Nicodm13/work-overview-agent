@@ -84,12 +84,11 @@ tasks.register('seedGraphTestData', Exec) {
 
 tasks.register('clearGraphTestData', Exec) {
     group = 'microsoft 365 test data'
-    description = 'Deletes mailbox and calendar items and purges Teams messages while preserving accounts and conversation containers. Use -PskipTeamsMessagePurge=true to skip an already completed Teams purge.'
+    description = 'Deletes sandbox mailbox, calendar, and Teams messages while preserving accounts and conversation containers.'
     def cleanupArgs = [
         '-Apply', '-RemoveAllMailboxAndCalendarItems', '-ConfirmCalendarCancellations',
-        '-PurgeAllTeamsMessages', '-ConfirmPermanentTeamsPurge', '-ConfirmSandboxTenant'
+        '-ConfirmTeamsMessageDeletion', '-ConfirmSandboxTenant'
     ]
-    if (project.hasProperty('skipTeamsMessagePurge')) cleanupArgs << '-SkipTeamsMessagePurge'
     commandLine(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', graphTestDataCleanupScript] + cleanupArgs)
 }
 

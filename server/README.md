@@ -214,10 +214,10 @@ admin consent for the following application permissions while running the script
 | --- | --- | --- |
 | `User.Read.All` | Seed | Resolve the 17 test users and their Graph IDs. |
 | `Team.Create` | Seed | Create the seeded team. |
-| `Team.ReadBasic.All` | Seed and Clear | Find teams while seeding and check for existing channel messages before Purview cleanup. |
+| `Team.ReadBasic.All` | Seed and Clear | Find teams while seeding and check for existing channel messages before Teams cleanup. |
 | `Channel.Create` | Seed | Create seeded team channels. |
 | `Channel.ReadBasic.All` | Seed and Clear | Find existing channels and enumerate channels for the Clear Data precheck. |
-| `ChannelMessage.Read.All` | Clear | Check whether active channel messages remain before starting a Purview search. The Clear Data script uses app-only authentication; the delegated grant above does not cover it. |
+| `ChannelMessage.Read.All` | Clear | Enumerate channel messages before delegated deletion. |
 | `TeamMember.ReadWriteNonOwnerRole.All` | Seed | Add test users to the seeded team. |
 | `Chat.Create` | Seed | Create seeded group and one-to-one chats. |
 | `Chat.Read.All` | Seed and Clear | Inspect existing chats and check for active chat messages. |
@@ -227,28 +227,13 @@ admin consent for the following application permissions while running the script
 | `Mail.ReadWrite` | Seed and Clear | Find, create, update, and delete seeded mailbox messages. |
 | `Mail.Send` | Seed | Send seeded email messages. |
 | `Calendars.ReadWrite` | Seed and Clear | Create seeded calendar events and remove events during cleanup. |
-| `eDiscovery.Read.All` | Clear | Create and estimate the Teams-message search and poll its operations. |
-| `eDiscovery.ReadWrite.All` | Clear | Create Purview cases/searches and purge Teams messages. |
 
 `Group.ReadWrite.All` is not required by these scripts and does not replace
 `ChannelMessage.Read.All` for the Clear Data channel-message check. The channel-message API requires
 `ChannelMessage.Read.All` (or resource-specific `ChannelMessage.Read.Group` where the app is granted
 access to the specific team); the current precheck scans channels across the sandbox.
 
-Run `Microsoft Graph - Clear Data` before `Microsoft Graph - Seed Data` when starting a fresh test run.
-Clear Data first checks for active messages in chats and channels using Graph. If none are found, it
-skips the Purview search; otherwise, it uses app-only eDiscovery to purge Teams messages while
-preserving chat/team/channel containers and their IDs. The Graph check needs the application
-permissions listed above. Use `-PskipTeamsMessagePurge=true` only when a previous Purview purge has
-already been verified and you want Clear Data to proceed directly to mailbox/calendar cleanup.
-
-Purview requires an eDiscovery Premium-enabled case and the app service principal registered in the
-Purview `eDiscoveryManager` role and as an eDiscovery case admin. A Teams purge is limited to 100
-messages per mailbox per request. Clear Data waits for the Purview operation and retries transient
-Graph errors while polling; it does not treat an immediate post-purge search estimate as proof of
-failure because indexed compliance copies can remain after user-visible messages are removed. The
-Graph Teams source adapter ignores messages with `deletedDateTime`. Mock source timestamps are rebased
-into the same 14-day window when the mock source loader starts.
+Run `Microsoft Graph - Clear Data` before `Microsoft Graph - Seed Data` for a fresh test run. Clear Data authenticates as each test message author and soft-deletes chat and channel messages while retaining the existing one-to-one chats, group chats, Team, and channels. It verifies that messages are no longer readable before deleting mailbox and calendar items. Add `WORK_OVERVIEW_TEST_USER_PASSWORD` to the Git-ignored `server/.env` if all test accounts share a password. The app registration needs delegated Graph permissions `Chat.ReadWrite`, `ChannelMessage.ReadWrite`, and `User.Read` with admin consent. Password sign-in requires the test accounts to be allowed to use the ROPC flow. The cleanup script checks all authors and credentials before deleting any messages.
 
 Remove the temporary application permissions and admin consent when the sandbox seed/clear scripts
 are no longer needed.
