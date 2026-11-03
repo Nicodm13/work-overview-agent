@@ -4,13 +4,15 @@ param(
     [switch]$RemoveAllMailboxAndCalendarItems,
     [switch]$ConfirmCalendarCancellations,
     [switch]$ConfirmTeamsMessageDeletion,
-    [switch]$ConfirmSandboxTenant
+    [switch]$ConfirmSandboxTenant,
+    [ValidateRange(1, 16)][int]$MaxConcurrency = 4
 )
 
 $ErrorActionPreference = 'Stop'
 $expectedTenantId = 'b9ff29bd-1687-4874-83d1-273303aad419'
 $dataRoot = Join-Path $PSScriptRoot '..\src\main\resources\mock-data'
 $configPath = Join-Path $PSScriptRoot '..\.env'
+. (Join-Path $PSScriptRoot 'graph-parallel.ps1')
 
 function Import-LocalConfig {
     param([string]$Path)
@@ -58,6 +60,8 @@ function Invoke-Graph {
         }
         $statusText = if ($statusCode) { "HTTP $statusCode" } else { 'HTTP request failed' }
         $detail = if ($responseBody) { $responseBody } else { $_.Exception.Message }
+        $retryAfter = if ($webResponse) { [string]$webResponse.Headers['Retry-After'] } else { $null }
+        if ($retryAfter) { $detail = "$detail Retry-After: $retryAfter" }
         throw "Microsoft Graph $Method request failed ($statusText) at $Uri. Response: $detail"
     }
     $parsed = $null
@@ -65,12 +69,42 @@ function Invoke-Graph {
     return [pscustomobject]@{ Body = $parsed; StatusCode = [int]$response.StatusCode; Headers = $response.Headers }
 }
 
+function Get-GraphItemIfPresent {
+    param([string]$Uri, [string]$AccessToken = $script:graphToken)
+    try { return (Invoke-Graph -Method GET -Uri $Uri -AccessToken $AccessToken).Body }
+    catch {
+        if ($_ -match 'HTTP 404') { return $null }
+        throw
+    }
+}
+
+function Invoke-GraphCleanupMutation {
+    param([ValidateSet('POST', 'DELETE')][string]$Method, [string]$Uri, [object]$Body, [string]$AccessToken = $script:graphToken)
+    $maxAttempts = 5
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        try {
+            if ($PSBoundParameters.ContainsKey('Body')) {
+                return Invoke-Graph -Method $Method -Uri $Uri -Body $Body -AccessToken $AccessToken
+            }
+            return Invoke-Graph -Method $Method -Uri $Uri -AccessToken $AccessToken
+        }
+        catch {
+            $errorText = [string]$_
+            if ($errorText -match 'HTTP 404') { return $null }
+            if ($errorText -notmatch 'HTTP (429|500|502|503|504)' -or $attempt -ge $maxAttempts) { throw }
+            $delaySeconds = if ($errorText -match 'Retry-After:\s*(\d+)') { [int]$Matches[1] } else { [int][Math]::Min(30, [Math]::Pow(2, $attempt)) }
+            Write-Output "Graph $Method returned a transient error; retrying in $delaySeconds seconds (attempt $($attempt + 1) of $maxAttempts)."
+            Start-Sleep -Seconds $delaySeconds
+        }
+    }
+}
+
 function Get-AllGraphItems {
-    param([string]$Uri)
+    param([string]$Uri, [string]$AccessToken = $script:graphToken)
     $items = [System.Collections.Generic.List[object]]::new()
     $next = $Uri
     while ($next) {
-        $page = (Invoke-Graph -Method GET -Uri $next).Body
+        $page = (Invoke-Graph -Method GET -Uri $next -AccessToken $AccessToken).Body
         foreach ($item in $page.value) { $items.Add($item) }
         $next = $page.'@odata.nextLink'
     }
@@ -97,16 +131,18 @@ function Test-ReadableTeamsMessage {
 }
 
 function Get-TeamsMessageTargets {
-    param([object[]]$Chats)
+    param([object[]]$Chats, [hashtable]$ChatSessions)
     $targets = [Collections.Generic.List[object]]::new()
     foreach ($chat in $Chats) {
         $chatId = [uri]::EscapeDataString([string]$chat.Id)
         $uri = "https://graph.microsoft.com/v1.0/chats/$chatId/messages"
-        foreach ($message in (Get-AllGraphItems -Uri "$uri`?`$top=50")) {
+        $session = $ChatSessions[[string]$chat.Id]
+        if (-not $session) { throw "No delegated inventory session was recorded for chat $($chat.Id)." }
+        foreach ($message in (Get-AllGraphItems -Uri "$uri`?`$top=50&`$orderby=createdDateTime%20desc" -AccessToken $session.AccessToken)) {
             if (-not (Test-ReadableTeamsMessage -Message $message)) { continue }
             $messageId = [uri]::EscapeDataString([string]$message.id)
             $authorId = [string]$message.from.user.id
-            $targets.Add(@{ AuthorId = $authorId; ReadUri = "$uri/$messageId"; DeleteUri = "https://graph.microsoft.com/v1.0/users/$authorId/chats/$chatId/messages/$messageId/softDelete" })
+            $targets.Add(@{ AuthorId = $authorId; Source = 'chat'; ReadUri = "$uri/$messageId"; DeleteUri = "https://graph.microsoft.com/v1.0/users/$authorId/chats/$chatId/messages/$messageId/softDelete" })
         }
     }
     foreach ($team in (Get-AllGraphItems -Uri 'https://graph.microsoft.com/v1.0/teams?$select=id&$top=100')) {
@@ -115,9 +151,15 @@ function Get-TeamsMessageTargets {
             $channelId = [uri]::EscapeDataString([string]$channel.id)
             $uri = "https://graph.microsoft.com/v1.0/teams/$teamId/channels/$channelId/messages"
             foreach ($message in (Get-AllGraphItems -Uri "$uri`?`$top=50")) {
-                if (-not (Test-ReadableTeamsMessage -Message $message)) { continue }
                 $messageId = [uri]::EscapeDataString([string]$message.id)
-                $targets.Add(@{ AuthorId = [string]$message.from.user.id; ReadUri = "$uri/$messageId"; DeleteUri = "$uri/$messageId/softDelete" })
+                $repliesUri = "$uri/$messageId/replies"
+                foreach ($reply in (Get-AllGraphItems -Uri "$repliesUri`?`$top=50")) {
+                    if (-not (Test-ReadableTeamsMessage -Message $reply)) { continue }
+                    $replyId = [uri]::EscapeDataString([string]$reply.id)
+                    $targets.Add(@{ AuthorId = [string]$reply.from.user.id; Source = 'channel'; ReadUri = "$repliesUri/$replyId"; DeleteUri = "$repliesUri/$replyId/softDelete" })
+                }
+                if (-not (Test-ReadableTeamsMessage -Message $message)) { continue }
+                $targets.Add(@{ AuthorId = [string]$message.from.user.id; Source = 'channel'; ReadUri = "$uri/$messageId"; DeleteUri = "$uri/$messageId/softDelete" })
             }
         }
     }
@@ -157,70 +199,131 @@ function Remove-TeamsMessages {
         $sessions[$authorId] = Get-DelegatedGraphSession -User $usersById[$authorId]
     }
     Write-Output "Teams messages: deleting $($Targets.Count) messages as their authors."
-    $index = 0
-    foreach ($target in $Targets) {
-        $session = $sessions[$target.AuthorId]
-        if ($session.ExpiresAt -lt (Get-Date).AddMinutes(5)) {
-            $session = Get-DelegatedGraphSession -User $usersById[$target.AuthorId]
-            $sessions[$target.AuthorId] = $session
+    $groups = @($Targets | Group-Object { [regex]::Replace($_.ReadUri, '/messages/.*$', '/messages') })
+    $work = @($groups | ForEach-Object { @{ Targets = @($_.Group); Users = $usersById; Sessions = $sessions; TenantId = $tenantId; ClientId = $clientId; ClientSecret = $clientSecret } })
+    $completed = @(Invoke-GraphParallel -Items $work -GraphToken $script:graphToken -MaxConcurrency $MaxConcurrency -Functions @('Invoke-Graph', 'Get-GraphItemIfPresent', 'Invoke-GraphCleanupMutation', 'Get-DelegatedGraphSession', 'Test-AdminDeletedTeamsMessage', 'Test-ReadableTeamsMessage') -Worker {
+        param($group)
+        $script:tenantId = $group.TenantId
+        $script:clientId = $group.ClientId
+        $script:clientSecret = $group.ClientSecret
+        $localSessions = @{}
+        foreach ($target in $group.Targets) {
+            if (-not $localSessions.ContainsKey($target.AuthorId)) { $localSessions[$target.AuthorId] = $group.Sessions[$target.AuthorId] }
+            $session = $localSessions[$target.AuthorId]
+            if ($session.ExpiresAt -lt (Get-Date).AddMinutes(5)) {
+                $session = Get-DelegatedGraphSession -User $group.Users[$target.AuthorId]
+                $localSessions[$target.AuthorId] = $session
+            }
+            $current = Get-GraphItemIfPresent -Uri $target.ReadUri -AccessToken $session.AccessToken
+            if ($current -and (Test-ReadableTeamsMessage -Message $current)) {
+                Invoke-GraphCleanupMutation -Method POST -Uri $target.DeleteUri -AccessToken $session.AccessToken | Out-Null
+            }
         }
-        $current = (Invoke-Graph -Method GET -Uri $target.ReadUri).Body
-        if (Test-ReadableTeamsMessage -Message $current) {
-            Invoke-Graph -Method POST -Uri $target.DeleteUri -AccessToken $session.AccessToken | Out-Null
+        foreach ($target in $group.Targets) {
+            $session = $localSessions[$target.AuthorId]
+            if ($session.ExpiresAt -lt (Get-Date).AddMinutes(5)) {
+                $session = Get-DelegatedGraphSession -User $group.Users[$target.AuthorId]
+                $localSessions[$target.AuthorId] = $session
+            }
+            $remaining = Get-GraphItemIfPresent -Uri $target.ReadUri -AccessToken $session.AccessToken
+            if ($remaining -and (Test-ReadableTeamsMessage -Message $remaining)) { throw "Teams message $($target.ReadUri) remains readable after delegated deletion." }
         }
-        $index++
-        Write-TaskProgress -Activity 'Deleting Teams messages' -Current $index -Total $Targets.Count -Status $target.AuthorId
-    }
-    foreach ($target in $Targets) {
-        $remaining = (Invoke-Graph -Method GET -Uri $target.ReadUri).Body
-        if (Test-ReadableTeamsMessage -Message $remaining) { throw "Teams message $($target.ReadUri) remains readable after delegated deletion. Mailbox and calendar cleanup was stopped." }
-    }
+        return $group.Targets.Count
+    })
+    Write-Output "Teams messages: processed $((($completed | Measure-Object -Sum).Sum)) messages across $($groups.Count) conversations."
     Write-Output 'Teams messages: verified deleted.'
 }
 
-function Remove-SeededChats {
-    $statePath = Join-Path $PSScriptRoot 'test-seed-state.json'
-    if (-not (Test-Path -LiteralPath $statePath)) { throw 'Seed state is missing; refusing to delete chats that cannot be tied to the seeded dataset.' }
-    $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
-    if ($state.tenantId -and $state.tenantId -ne $tenantId) { throw 'Seed state belongs to a different tenant; refusing to delete chats.' }
-    $chatIds = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    foreach ($property in $state.conversationIds.PSObject.Properties) {
-        $id = [string]$property.Value
-        if (-not [string]::IsNullOrWhiteSpace($id)) { [void]$chatIds.Add($id) }
-    }
-    $legacyChatIds = @()
-    if ($state.legacyChatIds -is [System.Management.Automation.PSCustomObject]) {
-        $legacyChatIds = @($state.legacyChatIds.PSObject.Properties | ForEach-Object { $_.Value })
-    }
-    elseif ($null -ne $state.legacyChatIds) {
-        $legacyChatIds = @($state.legacyChatIds)
-    }
-    foreach ($id in $legacyChatIds) {
-        if ($id -is [string] -and -not [string]::IsNullOrWhiteSpace($id)) { [void]$chatIds.Add($id) }
-    }
-    if ($chatIds.Count -eq 0) { Write-Output 'Seeded chats: none recorded.'; return }
+function Remove-DatasetTeams {
+    $teamConfigPath = Join-Path $dataRoot 'team.json'
+    $datasetTeam = Get-Content -LiteralPath $teamConfigPath -Raw | ConvertFrom-Json
+    $teams = @(Get-AllGraphItems -Uri 'https://graph.microsoft.com/v1.0/teams?$select=id,displayName&$top=100' | Where-Object { $_.displayName -ceq $datasetTeam.displayName })
+    $script:deletedDatasetTeams = @($teams)
+    if ($teams.Count -eq 0) { Write-Output "Teams: no active '$($datasetTeam.displayName)' Team found."; return }
 
-    Write-Output "Seeded chats: soft-deleting $($chatIds.Count) conversations."
+    Write-Output "Teams: soft-deleting $($teams.Count) active '$($datasetTeam.displayName)' Team container(s)."
     $index = 0
-    foreach ($chatId in $chatIds) {
-        $encodedId = [uri]::EscapeDataString($chatId)
-        $chatUri = "https://graph.microsoft.com/v1.0/chats/$encodedId"
-        $exists = $true
-        try { Invoke-Graph -Method GET -Uri "$chatUri`?`$select=id" | Out-Null }
-        catch { if ($_ -match 'HTTP 404') { $exists = $false } else { throw } }
-        if ($exists) {
-            Invoke-Graph -Method DELETE -Uri $chatUri | Out-Null
-            Start-Sleep -Milliseconds 1100
-        }
-        try {
-            Invoke-Graph -Method GET -Uri "$chatUri`?`$select=id" | Out-Null
-            throw "Seeded chat $chatId is still active after deletion; stopping before mailbox and calendar cleanup."
-        }
-        catch { if ($_ -notmatch 'HTTP 404') { throw } }
+    foreach ($team in $teams) {
+        $teamId = [uri]::EscapeDataString([string]$team.id)
+        Invoke-GraphCleanupMutation -Method DELETE -Uri "https://graph.microsoft.com/v1.0/groups/$teamId" | Out-Null
         $index++
-        Write-TaskProgress -Activity 'Deleting seeded chats' -Current $index -Total $chatIds.Count -Status $chatId
+        Write-TaskProgress -Activity 'Deleting project Teams' -Current $index -Total $teams.Count -Status $team.displayName
     }
-    Write-Output "Seeded chats: verified $($chatIds.Count) are soft-deleted."
+
+    foreach ($team in $teams) {
+        $teamId = [uri]::EscapeDataString([string]$team.id)
+        $groupUri = "https://graph.microsoft.com/v1.0/groups/$teamId`?`$select=id"
+        $remaining = $null
+        for ($attempt = 1; $attempt -le 30; $attempt++) {
+            $remaining = Get-GraphItemIfPresent -Uri $groupUri
+            if (-not $remaining) { break }
+            if ($attempt -lt 30) { Start-Sleep -Seconds 2 }
+        }
+        if ($remaining) { throw "The backing group for Team '$($team.displayName)' ($($team.id)) is still active after deletion; stopping before mailbox and calendar cleanup." }
+    }
+    Write-Output "Teams: verified $($teams.Count) backing group(s) are deleted; Teams removal may still be propagating."
+}
+
+function Confirm-DatasetTeamsRemoved {
+    param([object[]]$Teams)
+    foreach ($team in $Teams) {
+        $teamId = [uri]::EscapeDataString([string]$team.id)
+        $teamUri = "https://graph.microsoft.com/v1.0/teams/$teamId`?`$select=id"
+        $remaining = $null
+        for ($attempt = 1; $attempt -le 37; $attempt++) {
+            $remaining = Get-GraphItemIfPresent -Uri $teamUri
+            if (-not $remaining) { break }
+            if ($attempt -lt 37) { Start-Sleep -Seconds 5 }
+        }
+        if ($remaining) { throw "Team '$($team.displayName)' ($($team.id)) is still visible in Graph after its backing group was deleted. Mailbox and calendar cleanup completed; wait for propagation before reseeding." }
+    }
+    Write-Output "Teams: verified $($Teams.Count) project Team container(s) are no longer visible."
+}
+
+function Get-MailboxMessageTargets {
+    param([object[]]$Users)
+    $inventory = @(Invoke-GraphParallel -Items @($Users) -GraphToken $script:graphToken -MaxConcurrency $MaxConcurrency -Functions @('Invoke-Graph', 'Get-AllGraphItems') -Worker {
+        param($user)
+        $upn = [uri]::EscapeDataString($user.userPrincipalName)
+        $messages = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/users/$upn/messages?`$select=id,subject&`$top=100"
+        foreach ($message in $messages) {
+            [pscustomobject]@{ User = $user.userPrincipalName; Id = $message.id; Subject = $message.subject }
+        }
+    })
+    return $inventory
+}
+
+function Remove-MailboxMessages {
+    param([object[]]$Users, [object[]]$Targets)
+    if ($Targets.Count -eq 0) { Write-Output 'Mailbox messages: none found.'; return }
+
+    $pending = @($Targets)
+    $maxPasses = 3
+    for ($pass = 1; $pass -le $maxPasses; $pass++) {
+        Write-Output "Mailbox messages: permanently deleting $($pending.Count) visible items (pass $pass of $maxPasses)."
+        $mailboxes = @($pending | Group-Object User)
+        $deleted = @(Invoke-GraphParallel -Items $mailboxes -GraphToken $script:graphToken -MaxConcurrency $MaxConcurrency -Functions @('Invoke-Graph', 'Invoke-GraphCleanupMutation') -Worker {
+            param($mailbox)
+            foreach ($item in $mailbox.Group) {
+                $user = [uri]::EscapeDataString($item.User)
+                $id = [uri]::EscapeDataString($item.Id)
+                Invoke-GraphCleanupMutation -Method POST -Uri "https://graph.microsoft.com/v1.0/users/$user/messages/$id/permanentDelete" | Out-Null
+            }
+            return $mailbox.Count
+        })
+        Write-Output "Mailbox messages: processed $((($deleted | Measure-Object -Sum).Sum)) items across $($mailboxes.Count) mailboxes."
+
+        Start-Sleep -Seconds 3
+        $pending = @(Get-MailboxMessageTargets -Users $Users)
+        if ($pending.Count -eq 0) {
+            Write-Output 'Mailbox messages: verified no visible messages remain.'
+            return
+        }
+        if ($pass -lt $maxPasses) {
+            Write-Output "Mailbox verification still found $($pending.Count) messages; retrying from the current Graph inventory."
+        }
+    }
+    throw "Mailbox cleanup stopped after $maxPasses passes; Graph still returns $($pending.Count) visible messages."
 }
 
 function Write-TaskProgress {
@@ -260,6 +363,7 @@ $messageTargets = [System.Collections.Generic.List[object]]::new()
 $eventTargets = [System.Collections.Generic.List[object]]::new()
 $readOnlyCalendars = [System.Collections.Generic.List[object]]::new()
 $chatTargets = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::Ordinal)
+$chatSessions = @{}
 $userIndex = 0
 foreach ($user in $users) {
     $upn = [uri]::EscapeDataString($user.userPrincipalName)
@@ -275,84 +379,46 @@ foreach ($user in $users) {
         $events = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/users/$upn/calendars/$calendarId/events?`$select=id,subject,start&`$top=100"
         foreach ($event in $events) { $eventTargets.Add([pscustomobject]@{ User = $user.userPrincipalName; CalendarId = $calendar.id; Id = $event.id; Subject = $event.subject; Calendar = $calendar.name }) }
     }
-    $chats = Get-AllGraphItems -Uri "https://graph.microsoft.com/v1.0/users/$upn/chats?`$select=id,chatType,topic&`$top=50"
+    $graphUser = (Invoke-Graph -Method GET -Uri "https://graph.microsoft.com/v1.0/users/${upn}?`$select=id,userPrincipalName").Body
+    $session = Get-DelegatedGraphSession -User $graphUser
+    $chats = Get-AllGraphItems -Uri 'https://graph.microsoft.com/v1.0/me/chats?$select=id,chatType,topic&$top=50' -AccessToken $session.AccessToken
     foreach ($chat in $chats) {
         if (-not $chatTargets.ContainsKey($chat.id)) {
             $chatTargets.Add($chat.id, [pscustomobject]@{ Id = $chat.id; Type = $chat.chatType; Topic = $chat.topic; SeenThrough = [System.Collections.Generic.List[string]]::new() })
+            $chatSessions[[string]$chat.id] = $session
         }
         $chatTargets[$chat.id].SeenThrough.Add($user.userPrincipalName)
     }
     $userIndex++
     Write-TaskProgress -Activity 'Scanning user mailboxes and calendars' -Current $userIndex -Total $users.Count -Status $user.userPrincipalName
 }
-Write-Output "Found $($messageTargets.Count) emails, $($eventTargets.Count) calendar events, and $($chatTargets.Count) chats."
+if ($Apply) {
+    $teamsTargets = Get-TeamsMessageTargets -Chats $chatTargets.Values -ChatSessions $chatSessions
+    $chatMessageCount = @($teamsTargets | Where-Object { $_.Source -eq 'chat' }).Count
+    $channelMessageCount = @($teamsTargets | Where-Object { $_.Source -eq 'channel' }).Count
+    Write-Output "Teams inventory: $chatMessageCount chat messages across $($chatTargets.Count) live conversations; $channelMessageCount channel messages."
+}
+Write-Output "Found $($messageTargets.Count) mailbox messages, $($eventTargets.Count) calendar events, and $($chatTargets.Count) live chats."
 if ($readOnlyCalendars.Count -gt 0) { Write-Output "Skipping $($readOnlyCalendars.Count) read-only calendars." }
 if (-not $Apply) { return }
 
-Write-Output 'Teams messages: delegated deletion will run after test-user sign-in preflight.'
-$teamsTargets = Get-TeamsMessageTargets -Chats $chatTargets.Values
+Write-Output 'Teams messages: deleting messages found in the live Graph inventory.'
 Remove-TeamsMessages -Targets $teamsTargets -Users $users
-Remove-SeededChats
+Write-Output 'Chats: preserving conversation containers for reseeding.'
+Remove-DatasetTeams
 
-$messageIndex = 0
-foreach ($item in $messageTargets) {
-    $user = [uri]::EscapeDataString($item.User)
-    $id = [uri]::EscapeDataString($item.Id)
-    Invoke-Graph -Method DELETE -Uri "https://graph.microsoft.com/v1.0/users/$user/messages/$id" | Out-Null
-    $messageIndex++
-    Write-TaskProgress -Activity 'Deleting mailbox messages' -Current $messageIndex -Total $messageTargets.Count -Status $item.Subject
-}
 $eventIndex = 0
 foreach ($item in $eventTargets) {
     $user = [uri]::EscapeDataString($item.User)
     $calendarId = [uri]::EscapeDataString($item.CalendarId)
     $id = [uri]::EscapeDataString($item.Id)
-    Invoke-Graph -Method DELETE -Uri "https://graph.microsoft.com/v1.0/users/$user/calendars/$calendarId/events/$id" | Out-Null
+    Invoke-GraphCleanupMutation -Method DELETE -Uri "https://graph.microsoft.com/v1.0/users/$user/calendars/$calendarId/events/$id" | Out-Null
     $eventIndex++
     Write-TaskProgress -Activity 'Deleting calendar events' -Current $eventIndex -Total $eventTargets.Count -Status "$($item.User) | $($item.Subject)"
 }
-$seedStatePath = Join-Path $PSScriptRoot 'test-seed-state.json'
-if (Test-Path -LiteralPath $seedStatePath) {
-    $loadedState = Get-Content -LiteralPath $seedStatePath -Raw | ConvertFrom-Json
-    $datasetName = if ($loadedState.dataset) { $loadedState.dataset } else { 'atlas-developer-platform-v1' }
-    $legacyChatSource = $loadedState.legacyChatIds
-    if ($null -eq $legacyChatSource) { $legacyChatSource = $loadedState.chatIds }
-    if ($legacyChatSource -is [System.Management.Automation.PSCustomObject]) {
-        $legacyChatSource = @($legacyChatSource.PSObject.Properties | ForEach-Object { $_.Value })
-    }
-    $savedLegacyChatIds = @($legacyChatSource | Where-Object {
-        $_ -is [string] -and -not [string]::IsNullOrWhiteSpace($_)
-    })
-    $preservedState = @{
-        schemaVersion = 2
-        tenantId = $tenantId
-        dataset = $datasetName
-        teamId = $loadedState.teamId
-        teamProvisioning = $loadedState.teamProvisioning
-        legacyChatIds = $savedLegacyChatIds
-        channelIds = @{}
-        conversationIds = @{}
-        teamsMessages = @{}
-        emails = @{}
-        events = @{}
-    }
-    foreach ($mapName in @('channelIds', 'conversationIds')) {
-        $map = $loadedState.$mapName
-        if ($map) { foreach ($property in $map.PSObject.Properties) { $preservedState[$mapName][$property.Name] = $property.Value } }
-    }
-    $messageMap = $loadedState.teamsMessages
-    if ($messageMap) {
-        foreach ($property in $messageMap.PSObject.Properties) {
-            $messageState = @{}
-            foreach ($messageProperty in $property.Value.PSObject.Properties) { $messageState[$messageProperty.Name] = $messageProperty.Value }
-            $messageState.purged = $true
-            $preservedState.teamsMessages[$property.Name] = $messageState
-        }
-    }
-    $preservedState.updatedAt = (Get-Date).ToUniversalTime().ToString('o')
-    $tempStatePath = "$seedStatePath.tmp"
-    $preservedState | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $tempStatePath -Encoding UTF8
-    Move-Item -LiteralPath $tempStatePath -Destination $seedStatePath -Force
-    Write-Output 'Seed state reset.'
-}
+# Organizer deletions can generate cancellation messages. Re-inventory after
+# calendar cleanup so those messages are included in mailbox cleanup.
+$messageTargets = @(Get-MailboxMessageTargets -Users $users)
+Remove-MailboxMessages -Users $users -Targets $messageTargets
+Confirm-DatasetTeamsRemoved -Teams $script:deletedDatasetTeams
 Write-Output 'Cleanup complete.'

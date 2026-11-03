@@ -9,9 +9,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
-import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
@@ -93,13 +94,21 @@ class GraphSourceAdaptersTest {
         expectJson("/me/chats", """
             {"value":[{"id":"chat-a","topic":"Project chat"}]}
             """);
-        expectJson("/me/chats/chat-a/messages", """
+        server.expect(requestTo(startsWith(ROOT + "/me/chats/chat-a/messages")))
+            .andExpect(httpRequest -> {
+                var query = URLDecoder.decode(httpRequest.getURI().getRawQuery(), StandardCharsets.UTF_8);
+                assertThat(query).contains("$orderby=createdDateTime desc").doesNotContain("lastModifiedDateTime");
+            })
+            .andRespond(withSuccess("""
             {"value":[
               {"id":"message-1","createdDateTime":"2026-10-03T12:00:00Z",
                "from":{"user":{"displayName":"Maja"}},"body":{"content":"<div>Please check this</div>"}},
+              {"id":"start-message","createdDateTime":"2026-10-01T00:00:00Z","body":{"content":"At start"}},
+              {"id":"end-message","createdDateTime":"2026-10-07T00:00:00Z","body":{"content":"At end"}},
+              {"id":"later-message","createdDateTime":"2026-10-07T00:00:01Z","body":{"content":"After end"}},
               {"id":"old-message","createdDateTime":"2026-09-30T12:00:00Z",
                "body":{"content":"Older message"}}]}
-            """);
+            """, MediaType.APPLICATION_JSON));
         expectJson("/me/joinedTeams", """
             {"value":[{"id":"team-a","displayName":"Project team"}]}
             """);
@@ -118,11 +127,12 @@ class GraphSourceAdaptersTest {
             ]}
             """);
 
-        var result = new GraphTeamsSourceAdapter(graph, filter, new ObjectMapper(), "").load(request);
+        var result = new GraphTeamsSourceAdapter(graph, filter).load(request);
 
-        assertThat(result.items()).hasSize(3);
+        assertThat(result.items()).hasSize(5);
         assertThat(result.items()).extracting(item -> item.id()).containsExactlyInAnyOrder(
-            "chat-a:message-1", "team-a:channel-a:post-1", "team-a:channel-a:reply-1");
+            "chat-a:message-1", "chat-a:start-message", "chat-a:end-message",
+            "team-a:channel-a:post-1", "team-a:channel-a:reply-1");
         var post = result.items().stream().filter(item -> item.id().endsWith("post-1")).findFirst().orElseThrow();
         assertThat(post.content()).isEqualTo("Channel update");
         assertThat(post.senderOrOrganizer()).isEqualTo("Nicolai");
@@ -146,7 +156,7 @@ class GraphSourceAdaptersTest {
         server.expect(requestTo(startsWith(ROOT + "/me/joinedTeams")))
             .andRespond(withStatus(HttpStatus.FORBIDDEN));
 
-        var result = new GraphTeamsSourceAdapter(graph, filter, new ObjectMapper(), "").load(request);
+        var result = new GraphTeamsSourceAdapter(graph, filter).load(request);
 
         assertThat(result.items()).extracting(item -> item.id()).containsExactly("chat-a:message-1");
         assertThat(result.limitations()).anyMatch(text -> text.contains("Team.ReadBasic.All"));

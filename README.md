@@ -53,7 +53,7 @@ These are used by the MCP server when the user signs in. They grant access in th
 | `Team.ReadBasic.All` | List Teams the signed-in user belongs to. |
 | `Channel.ReadBasic.All` | List accessible channels in those Teams. |
 | `ChannelMessage.Read.All` | Read channel posts and thread replies. Requires admin consent. |
-| `Chat.ReadWrite` | Soft-delete messages in the signed-in dataset user's chats before reseeding them. |
+| `Chat.ReadWrite` | Reopen existing sandbox one-to-one chats for participants when needed and delete test messages during cleanup. |
 
 #### Test-data seeding — Application permissions
 
@@ -68,9 +68,10 @@ Grant these to the sandbox app registration and grant tenant admin consent only 
 | `Channel.Create` | Create its channels. |
 | `Channel.ReadBasic.All` | Find the template-created General channel and reuse it when importing messages. |
 | `Chat.Create` | Create project, working-group, and one-to-one chats. |
+| `Chat.Read.All` | Discover existing chats and messages before importing missing dataset messages. |
+| `ChannelMessage.Read.All` | Discover existing channel messages before importing missing dataset messages. |
 | `ChatMember.ReadWrite.All` | Re-share full imported history with group-chat members after migration by removing and re-adding members with an earlier `visibleHistoryStartDateTime`. |
-| `Chat.Read.All` | One-time adoption of existing chat IDs from the earlier seed-state format. It is no longer needed after the new state ledger records conversation-to-chat mappings. |
-| `Chat.ManageDeletion.All` | Restore an adopted chat if Graph reports it is soft-deleted. Needed only when a chat from an earlier cleanup is being reused. |
+| `Chat.ManageDeletion.All` | Restore a dataset chat if Graph reports it is soft-deleted. |
 | `Teamwork.Migrate.All` | Import Teams channel and chat messages with dataset authors and historical timestamps. |
 | `Mail.ReadWrite` | Create resumable email drafts with meeting-note attachments and adopt earlier seeded messages. |
 | `Mail.Send` | Send each completed dataset draft as its listed sender. |
@@ -78,13 +79,12 @@ Grant these to the sandbox app registration and grant tenant admin consent only 
 
 #### Test-data cleanup — Application permissions
 
-These permissions are used by `remove-graph-test-data.ps1`. `Chat.Read.All` is also needed for one-time legacy chat adoption, and `Chat.ManageDeletion.All` is also needed if the seeder must restore an adopted soft-deleted chat. Grant tenant admin consent only while running the relevant operation:
+These permissions are used by `remove-graph-test-data.ps1`. Grant tenant admin consent only while running the relevant operation:
 
 | Permission | Used for |
 | --- | --- |
 | `Mail.ReadWrite` | Enumerate and delete mailbox messages during cleanup. |
 | `Chat.Read.All` | Enumerate chats for the 17 listed users during cleanup. |
-| `Chat.ManageDeletion.All` | Soft-delete chats during cleanup. This tenant-wide permission is broader than the script's target scope, which remains chats involving the 17 listed users. |
 | `Team.ReadBasic.All` | Enumerate Teams in the sandbox during cleanup. |
 | `Group.ReadWrite.All` | Delete Teams' backing Microsoft 365 groups to clear channel posts and associated group resources. |
 
@@ -110,31 +110,24 @@ The script can also be run directly from the repository root:
 .\server\scripts\seed-graph-test-data.ps1 -ConfirmSandboxTenant
 ```
 
-The seed keeps a local `server/scripts/test-seed-state.json` ledger, ignored by Git. It records stable dataset row IDs, content hashes, and Graph IDs after each successful operation, so interrupted runs resume and unchanged rows are skipped. On first run after upgrading, it adopts matching prior seeded messages, events, chats, and the existing Team where Graph exposes their seed marker, roster, or transaction ID. Calendar events are patched in place when a CSV row changes. Since Graph allows changing a message's body and subject only while it is a draft, changed sent test emails are removed from the listed participants' mailboxes and recreated from a resumable draft. This applies only to messages identified as seeded by the ledger or seed header.
+Both scripts use at most four concurrent workers by default. To adjust this between 1 and 16, pass `-MaxConcurrency 2` when invoking a script directly, or `-PgraphMaxConcurrency=2` to either Gradle task. The seeder processes separate chats concurrently while keeping each chat's messages ordered. Cleanup processes separate Teams conversations and mailboxes concurrently, and retains the calendar-before-mailbox cleanup order. Graph throttling can limit the benefit of increasing the worker count. Do not run seed and cleanup at the same time.
 
-Mock timestamps are stored as relative ISO durations such as `NOW-PT86400S` (one day before load time), not fixed calendar dates. The Graph seeder and mock loader resolve every token against one captured current time; the tokens span the same two-week window. Meeting-note DOCX files use these tokens too, and their filenames no longer contain dates. The team JSON has no timestamp fields.
+The seeder stores no local seed-state file. Each invocation reads Graph to find existing Teams, chats, messages, sent emails, drafts and events, and keeps lookup information in memory only while it runs. Existing matching items are skipped; an existing item is not refreshed merely because the rolling dataset dates or content have changed. Teams messages are matched by author and normalized content, so identical real messages can also match. For ambiguous group chats or multiple drafts, the affected items are skipped and a warning is printed. Run cleanup before reseeding if a fresh rolling timeline is needed.
 
-Before importing the rolling timeline, the seeder uses delegated device-code sign-in with `Chat.ReadWrite` to soft-delete messages in the signed-in dataset user's seeded chats. Sign in as the dataset account whose chat history the MCP review will read. Chat messages outside that user's chats are not changed. Enable public client/device-code flow for the app registration, or provide a valid delegated token in `WORK_OVERVIEW_GRAPH_DELEGATED_ACCESS_TOKEN`. The app-only migration token remains responsible for importing the new messages.
+The seeder signs in as each sandbox test user to check their chat list. If a one-to-one chat is missing, it reopens the existing chat with delegated `Chat.ReadWrite` and verifies it is listed for both participants. Set `WORK_OVERVIEW_TEST_USER_PASSWORD` in `server/.env` to the shared test-user password, and grant the app delegated `Chat.ReadWrite` and `User.Read` consent. The password grant requires a compatible test-tenant sign-in policy and does not support MFA. No chat message is sent by the reopening step.
 
-Teams migration messages are immutable after import through the application-only migration API. Before each new seed, messages in the signed-in dataset user's seeded chats are soft-deleted while the chats remain active; then the refreshed messages are imported into those same chats. The Graph adapter ignores messages with a deletion timestamp. Mock mode resolves the same relative timestamp tokens when the mock source loader starts.
+Dataset timestamps use workday-relative tokens such as `WORKDAY-0T15:03:00Z`, resolved against the last completed UTC workday. Meeting-note DOCX metadata uses the same tokens.
 
-Graph timestamps emails at send time. Meeting invitations are sent when the script runs, including for events scheduled in the past. The seeder reuses its recorded Team, channels, and chats; it does not clear existing tenant data. Keep the state file so later runs can reconcile the same Graph objects. Deleting the state file loses those mappings and can lead to duplicate data.
+Teams migration messages are immutable through the application-only migration API. The seeder resumes in-progress imports and imports messages it cannot find; it does not clear existing messages. Graph timestamps emails at send time, and creating calendar events sends meeting invitations, including for events scheduled in the past.
 
-Cleanup previews all mailbox messages and events in writable calendars in the 17 listed mailboxes, all chats involving those users,
-and every Team in the tenant. Review that list, then apply either by launching the `Microsoft Graph - Clear Data` Gradle run
+Cleanup preview reports counts of mailbox messages, events in writable calendars, and chats involving the listed users. Apply either by launching the `Microsoft Graph - Clear Data` Gradle run
 configuration or by running the script directly with its required confirmation switches:
 
 ```powershell
 .\server\scripts\remove-graph-test-data.ps1 -Apply `
   -RemoveAllMailboxAndCalendarItems -ConfirmCalendarCancellations `
-  -RemoveAllChatsForListedUsers -ConfirmChatDeletion `
-  -RemoveAllTeamsAndChannelPosts -ConfirmTeamAndGroupResourceDeletion `
-  -ConfirmSandboxTenant
+  -ConfirmTeamsMessageDeletion -ConfirmSandboxTenant
 ```
 
-Cleanup is broad: it deletes all email and events in writable calendars in the listed mailboxes, not only items created by this
-seeder. Events in read-only calendars cannot be deleted and are skipped. Deleting organizer events can send cancellation notices. It soft-deletes every chat found for the 17 users;
-Microsoft allows chat restoration for seven days. Graph does not support application-only deletion of individual
-channel posts, so cleanup deletes every Team through its backing Microsoft 365 group. This also deletes each Team's
-associated group resources, such as files, group mailbox, and plans; groups are generally recoverable for 30 days.
+Cleanup is broad: it deletes all email and events in writable calendars in the listed mailboxes, not only items created by this seeder. Events in read-only calendars cannot be deleted and are skipped. Deleting organizer events can send cancellation notices. Cleanup deletes readable messages in the discovered chats and Teams as their authors, but preserves chat containers so they remain available for reseeding. It deletes the dataset Team through its backing Microsoft 365 group, including its associated group resources, such as files, group mailbox, and plans; groups are generally recoverable for 30 days.
 Only run cleanup against the disposable sandbox after reviewing the complete preview.
