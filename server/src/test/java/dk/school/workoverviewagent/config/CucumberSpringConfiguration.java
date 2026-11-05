@@ -41,7 +41,7 @@ public class CucumberSpringConfiguration {
         @Bean
         Instant mockEvidenceTimestamp(MockSourceDataLoader loader) {
             return loader.loadItems("teams.csv", SourceType.TEAMS).stream()
-                .filter(item -> item.id().equals("open-teams-15"))
+                .filter(item -> item.id().equals("office-chat-15-03"))
                 .findFirst().orElseThrow().occurredAt();
         }
 

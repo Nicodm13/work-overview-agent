@@ -22,13 +22,15 @@ Run its tests with:
 ## Microsoft 365 test data
 
 `server/src/main/resources/mock-data/` is the canonical dataset for both the mock source adapters and the Microsoft 365
-sandbox scripts. It contains the 17 project users (`users.csv`), Team and channel definitions (`team.json`), chat
-definitions (`teams-conversations.csv`), shared Outlook, calendar, and Teams records, and 15 synthetic meeting-minutes
-DOCX files. The documents contain their own meeting metadata and notes; mock mode reads them directly, and the Graph
-seeder sends each document as an attachment to its meeting participants. The current six-month history (April–October
-2026) contains 144 project emails, 15 meeting-minutes emails with DOCX attachments, 34 calendar events, 219 Teams
-messages, 33 chats (including 28 one-to-one chats across the team), and 15 meeting notes. Graph timestamps the minutes
-emails when the seed script runs.
+sandbox scripts. It uses the 17 sandbox accounts in `users.csv` as participants in a fictional Northstar Advisory
+office-move scenario. The dataset includes 176 project emails, 319 Teams messages, 45 group and one-to-one chats,
+28 calendar events, and 28 meeting-minute DOCX files. It contains completed discussions as well as open questions
+and follow-ups. Mock mode reads the documents directly; the Graph seeder sends each document as an email attachment
+to its meeting participants. Dataset timestamps cover the last ten completed workdays, while Graph timestamps sent
+emails and meeting invitations when the seed script runs.
+
+The dataset Team is now named `Northstar Advisory - Office Move`. Cleanup targets the Team named in `team.json`;
+an older Team from the previous dataset will not be removed automatically after this change.
 ### Microsoft Graph permissions
 
 The running AI and the test-data scripts use different permission types and flows. Configure only the delegated

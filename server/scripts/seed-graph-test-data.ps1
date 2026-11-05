@@ -779,12 +779,13 @@ $meetingNoteEmails = foreach ($noteFile in $meetingNotes) {
 $emails = @($emails) + @($meetingNoteEmails)
 # Format the source messages before hashing so changes are reconciled on reruns.
 # These are fictional sandbox contact numbers, not employees' real mobile numbers.
+$team = Get-Content -LiteralPath (Join-Path $dataRoot 'team.json') -Raw | ConvertFrom-Json
 $mailProfiles = @{}
 for ($profileIndex = 0; $profileIndex -lt $users.Count; $profileIndex++) {
     $profile = $users[$profileIndex]
     $mailProfiles[$profile.displayName] = @{
         address = "$($profile.displayName) <$($profile.userPrincipalName)>"
-        signature = "$($profile.displayName)`r`n$($profile.role)`r`nMobile +44 7700 900$('{0:D3}' -f $profileIndex)`r`nNorthstar Community Open Day"
+        signature = "$($profile.displayName)`r`n$($profile.role)`r`nMobile +44 7700 900$('{0:D3}' -f $profileIndex)`r`n$($team.companyName)"
     }
 }
 $formattedEmails = @{}
@@ -799,7 +800,6 @@ foreach ($mail in $emails) {
     }
     $formattedEmails[$mail.id] = $mail
 }
-$team = Get-Content -LiteralPath (Join-Path $dataRoot 'team.json') -Raw | ConvertFrom-Json
 $invalidChannelMessages = @($messages | Where-Object {
     ($_.team -or $_.channel) -and
     ($_.team -ne $team.displayName -or $_.channel -notin $team.channels.displayName)
@@ -1086,9 +1086,11 @@ foreach ($group in $chatGroups) {
     if ($ambiguousConversations.ContainsKey($group.Name)) { continue }
     $chatId = $conversationIds[$group.Name]
     if (-not $chatId) { throw "Dataset refers to unknown conversation '$($group.Name)'." }
+    $chatConversation = $conversations | Where-Object { $_.conversationId -eq $group.Name } | Select-Object -First 1
+    if (-not $chatConversation) { throw "Dataset refers to unknown conversation '$($group.Name)'." }
     if (-not $chatWork.ContainsKey($chatId)) {
         $messagesUri = "https://graph.microsoft.com/v1.0/chats/$chatId/messages"
-        $chatWork[$chatId] = @{ ChatId = $chatId; ChatType = $conversation.chatType; Records = [System.Collections.Generic.List[object]]::new(); Participants = [System.Collections.Generic.List[string]]::new(); Existing = @($messageInventory[$messagesUri]); Users = $graphUsers; HistoryStart = $historyStart; DataRoot = $dataRoot }
+        $chatWork[$chatId] = @{ ChatId = $chatId; ChatType = $chatConversation.chatType; Records = [System.Collections.Generic.List[object]]::new(); Participants = [System.Collections.Generic.List[string]]::new(); Existing = @($messageInventory[$messagesUri]); Users = $graphUsers; HistoryStart = $historyStart; DataRoot = $dataRoot }
     }
     foreach ($item in $group.Group) { $chatWork[$chatId].Records.Add($item) }
     foreach ($name in @($conversations | Where-Object { $_.conversationId -eq $group.Name } | ForEach-Object { $_.participants -split '\|' })) {

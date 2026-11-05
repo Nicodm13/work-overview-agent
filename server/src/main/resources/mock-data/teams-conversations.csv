@@ -1,74 +1,46 @@
-﻿"conversationId","chatType","topic","participants"
-"project-room","group","Northstar Open Day","Adele Vance|Alex Wilber|Diego Siciliani|Grady Archie|Henrietta Mueller|Isaiah Langer|Johanna Lorenz|Joni Sherman|Lee Gu|Lidia Holloway|Lynne Robbins|Megan Bowen|Miriam Graham|Nestor Wilke|Nicolai Dahl Madsen|Patti Fernandez|Pradeep Gupta"
-"stream-room","group","Room Setup and Access","Alex Wilber|Diego Siciliani|Grady Archie|Joni Sherman"
-"stream-catering","group","Catering and Guest Counts","Adele Vance|Lee Gu|Lidia Holloway|Nestor Wilke"
-"stream-volunteers","group","Volunteers and Safety","Henrietta Mueller|Isaiah Langer|Lynne Robbins|Megan Bowen|Pradeep Gupta"
-"stream-welcome","group","Guest Welcome and Materials","Johanna Lorenz|Miriam Graham|Nicolai Dahl Madsen|Patti Fernandez"
-"direct-01","oneOnOne","Adele Vance and Alex Wilber","Adele Vance|Alex Wilber"
-"direct-02","oneOnOne","Alex Wilber and Diego Siciliani","Alex Wilber|Diego Siciliani"
-"direct-03","oneOnOne","Diego Siciliani and Grady Archie","Diego Siciliani|Grady Archie"
-"direct-04","oneOnOne","Grady Archie and Henrietta Mueller","Grady Archie|Henrietta Mueller"
-"direct-05","oneOnOne","Henrietta Mueller and Isaiah Langer","Henrietta Mueller|Isaiah Langer"
-"direct-06","oneOnOne","Isaiah Langer and Johanna Lorenz","Isaiah Langer|Johanna Lorenz"
-"direct-07","oneOnOne","Johanna Lorenz and Joni Sherman","Johanna Lorenz|Joni Sherman"
-"direct-08","oneOnOne","Joni Sherman and Lee Gu","Joni Sherman|Lee Gu"
-"direct-09","oneOnOne","Lee Gu and Lidia Holloway","Lee Gu|Lidia Holloway"
-"direct-10","oneOnOne","Lidia Holloway and Lynne Robbins","Lidia Holloway|Lynne Robbins"
-"direct-11","oneOnOne","Lynne Robbins and Megan Bowen","Lynne Robbins|Megan Bowen"
-"direct-12","oneOnOne","Megan Bowen and Miriam Graham","Megan Bowen|Miriam Graham"
-"direct-13","oneOnOne","Miriam Graham and Nestor Wilke","Miriam Graham|Nestor Wilke"
-"direct-14","oneOnOne","Nestor Wilke and Nicolai Dahl Madsen","Nestor Wilke|Nicolai Dahl Madsen"
-"direct-15","oneOnOne","Nicolai Dahl Madsen and Patti Fernandez","Nicolai Dahl Madsen|Patti Fernandez"
-"direct-16","oneOnOne","Patti Fernandez and Pradeep Gupta","Patti Fernandez|Pradeep Gupta"
-"direct-17","oneOnOne","Pradeep Gupta and Adele Vance","Pradeep Gupta|Adele Vance"
-"direct-18","oneOnOne","Adele Vance and Diego Siciliani: Accessible route and room layout","Adele Vance|Diego Siciliani"
-"direct-19","oneOnOne","Alex Wilber and Grady Archie: Entrance clearance check","Alex Wilber|Grady Archie"
-"direct-20","oneOnOne","Diego Siciliani and Henrietta Mueller: Volunteer room setup briefing","Diego Siciliani|Henrietta Mueller"
-"direct-21","oneOnOne","Grady Archie and Isaiah Langer: Catering delivery access","Grady Archie|Isaiah Langer"
-"direct-22","oneOnOne","Henrietta Mueller and Johanna Lorenz: Quiet room volunteer cover","Henrietta Mueller|Johanna Lorenz"
-"direct-23","oneOnOne","Isaiah Langer and Joni Sherman: Allergen label approval","Isaiah Langer|Joni Sherman"
-"direct-24","oneOnOne","Johanna Lorenz and Lee Gu: Welcome desk name list","Johanna Lorenz|Lee Gu"
-"direct-25","oneOnOne","Joni Sherman and Lidia Holloway: Late RSVP changes","Joni Sherman|Lidia Holloway"
-"direct-26","oneOnOne","Lee Gu and Lynne Robbins: Guest arrival timing","Lee Gu|Lynne Robbins"
-"direct-27","oneOnOne","Lidia Holloway and Megan Bowen: Final RSVP count deadline","Lidia Holloway|Megan Bowen"
-"direct-28","oneOnOne","Lynne Robbins and Miriam Graham: Event day announcement timing","Lynne Robbins|Miriam Graham"
-"direct-29","oneOnOne","Megan Bowen and Nestor Wilke: Catering headcount confirmation","Megan Bowen|Nestor Wilke"
-"direct-30","oneOnOne","Miriam Graham and Nicolai Dahl Madsen: Welcome leaflet print approval","Miriam Graham|Nicolai Dahl Madsen"
-"direct-31","oneOnOne","Nestor Wilke and Patti Fernandez: Dietary count cross-check","Nestor Wilke|Patti Fernandez"
-"direct-32","oneOnOne","Nicolai Dahl Madsen and Pradeep Gupta: Welcome roster and breaks","Nicolai Dahl Madsen|Pradeep Gupta"
-"direct-33","oneOnOne","Patti Fernandez and Adele Vance: Accessibility feedback follow-up","Patti Fernandez|Adele Vance"
-"direct-34","oneOnOne","Pradeep Gupta and Alex Wilber: Volunteer signage review","Pradeep Gupta|Alex Wilber"
-"direct-35","oneOnOne","Adele Vance and Grady Archie - Entrance sign visibility","Adele Vance|Grady Archie"
-"direct-36","oneOnOne","Alex Wilber and Henrietta Mueller - Accessible seating layout","Alex Wilber|Henrietta Mueller"
-"direct-37","oneOnOne","Diego Siciliani and Isaiah Langer - Volunteer arrival and first-aid briefing","Diego Siciliani|Isaiah Langer"
-"direct-38","oneOnOne","Grady Archie and Johanna Lorenz - Quiet-room directions","Grady Archie|Johanna Lorenz"
-"direct-39","oneOnOne","Henrietta Mueller and Joni Sherman - Badge handover plan","Henrietta Mueller|Joni Sherman"
-"direct-40","oneOnOne","Isaiah Langer and Lee Gu - Calling guests who have not replied","Isaiah Langer|Lee Gu"
-"direct-41","oneOnOne","Johanna Lorenz and Lidia Holloway - Map correction for late RSVPs","Johanna Lorenz|Lidia Holloway"
-"direct-42","oneOnOne","Joni Sherman and Lynne Robbins - Evening shift handover","Joni Sherman|Lynne Robbins"
-"direct-43","oneOnOne","Lee Gu and Megan Bowen - Catering delivery staging","Lee Gu|Megan Bowen"
-"direct-44","oneOnOne","Lidia Holloway and Miriam Graham - Guest name pronunciation","Lidia Holloway|Miriam Graham"
-"direct-45","oneOnOne","Lynne Robbins and Nestor Wilke - Hot-drink station opening","Lynne Robbins|Nestor Wilke"
-"direct-46","oneOnOne","Megan Bowen and Nicolai Dahl Madsen - Arrival reminder wording","Megan Bowen|Nicolai Dahl Madsen"
-"direct-47","oneOnOne","Miriam Graham and Patti Fernandez - Feedback card collection","Miriam Graham|Patti Fernandez"
-"direct-48","oneOnOne","Nestor Wilke and Pradeep Gupta - Caterer delivery documents","Nestor Wilke|Pradeep Gupta"
-"direct-49","oneOnOne","Nicolai Dahl Madsen and Adele Vance - Welcome pack print batch","Nicolai Dahl Madsen|Adele Vance"
-"direct-50","oneOnOne","Patti Fernandez and Alex Wilber - Accessible directions in the guest note","Patti Fernandez|Alex Wilber"
-"direct-51","oneOnOne","Pradeep Gupta and Diego Siciliani - Volunteer sign readability","Pradeep Gupta|Diego Siciliani"
-"direct-52","oneOnOne","Adele Vance and Henrietta Mueller - Badge desk coverage","Adele Vance|Henrietta Mueller"
-"direct-53","oneOnOne","Alex Wilber and Isaiah Langer - Entrance sign installation","Alex Wilber|Isaiah Langer"
-"direct-54","oneOnOne","Diego Siciliani and Johanna Lorenz - Quiet room volunteer cover","Diego Siciliani|Johanna Lorenz"
-"direct-55","oneOnOne","Grady Archie and Joni Sherman - Table count and floor plan","Grady Archie|Joni Sherman"
-"direct-56","oneOnOne","Henrietta Mueller and Lee Gu - Late arrival check-in","Henrietta Mueller|Lee Gu"
-"direct-57","oneOnOne","Isaiah Langer and Lidia Holloway - Dietary label cross-check","Isaiah Langer|Lidia Holloway"
-"direct-58","oneOnOne","Johanna Lorenz and Lynne Robbins - Guest welcome route","Johanna Lorenz|Lynne Robbins"
-"direct-59","oneOnOne","Joni Sherman and Megan Bowen - Break coverage at check-in","Joni Sherman|Megan Bowen"
-"direct-60","oneOnOne","Lee Gu and Miriam Graham - Feedback themes for debrief","Lee Gu|Miriam Graham"
-"direct-61","oneOnOne","Lidia Holloway and Nestor Wilke - Final RSVP handoff","Lidia Holloway|Nestor Wilke"
-"direct-62","oneOnOne","Lynne Robbins and Nicolai Dahl Madsen - Supplier arrival plan","Lynne Robbins|Nicolai Dahl Madsen"
-"direct-63","oneOnOne","Megan Bowen and Patti Fernandez - Print quantities and spares","Megan Bowen|Patti Fernandez"
-"direct-64","oneOnOne","Miriam Graham and Pradeep Gupta - Step-free sign wording","Miriam Graham|Pradeep Gupta"
-"direct-65","oneOnOne","Nestor Wilke and Adele Vance - Food order delivery labels","Nestor Wilke|Adele Vance"
-"direct-66","oneOnOne","Nicolai Dahl Madsen and Alex Wilber - Room map revision check","Nicolai Dahl Madsen|Alex Wilber"
-"direct-67","oneOnOne","Patti Fernandez and Diego Siciliani - Hall door opening time","Patti Fernandez|Diego Siciliani"
-"direct-68","oneOnOne","Pradeep Gupta and Grady Archie - Equipment storage after setup","Pradeep Gupta|Grady Archie"
+conversationId,chatType,topic,participants
+project-room,group,Office move coordination,Adele Vance|Alex Wilber|Diego Siciliani|Grady Archie|Henrietta Mueller|Isaiah Langer|Johanna Lorenz|Joni Sherman|Lee Gu|Lidia Holloway|Lynne Robbins|Megan Bowen|Miriam Graham|Nestor Wilke|Nicolai Dahl Madsen|Patti Fernandez|Pradeep Gupta
+stream-workplace,group,Workplace and Facilities,Adele Vance|Alex Wilber|Diego Siciliani|Grady Archie
+stream-people,group,People and Communications,Henrietta Mueller|Isaiah Langer|Johanna Lorenz|Joni Sherman
+stream-planning,group,Planning and Finance,Lee Gu|Lidia Holloway|Lynne Robbins|Megan Bowen
+stream-office,group,Office Services,Miriam Graham|Nestor Wilke|Nicolai Dahl Madsen|Patti Fernandez|Pradeep Gupta
+direct-01,oneOnOne,Adele Vance and Alex Wilber,Adele Vance|Alex Wilber
+direct-02,oneOnOne,Alex Wilber and Diego Siciliani,Alex Wilber|Diego Siciliani
+direct-03,oneOnOne,Diego Siciliani and Grady Archie,Diego Siciliani|Grady Archie
+direct-04,oneOnOne,Grady Archie and Henrietta Mueller,Grady Archie|Henrietta Mueller
+direct-05,oneOnOne,Henrietta Mueller and Isaiah Langer,Henrietta Mueller|Isaiah Langer
+direct-06,oneOnOne,Isaiah Langer and Johanna Lorenz,Isaiah Langer|Johanna Lorenz
+direct-07,oneOnOne,Johanna Lorenz and Joni Sherman,Johanna Lorenz|Joni Sherman
+direct-08,oneOnOne,Joni Sherman and Lee Gu,Joni Sherman|Lee Gu
+direct-09,oneOnOne,Lee Gu and Lidia Holloway,Lee Gu|Lidia Holloway
+direct-10,oneOnOne,Lidia Holloway and Lynne Robbins,Lidia Holloway|Lynne Robbins
+direct-11,oneOnOne,Lynne Robbins and Megan Bowen,Lynne Robbins|Megan Bowen
+direct-12,oneOnOne,Megan Bowen and Miriam Graham,Megan Bowen|Miriam Graham
+direct-13,oneOnOne,Miriam Graham and Nestor Wilke,Miriam Graham|Nestor Wilke
+direct-14,oneOnOne,Nestor Wilke and Nicolai Dahl Madsen,Nestor Wilke|Nicolai Dahl Madsen
+direct-15,oneOnOne,Nicolai Dahl Madsen and Patti Fernandez,Nicolai Dahl Madsen|Patti Fernandez
+direct-16,oneOnOne,Patti Fernandez and Pradeep Gupta,Patti Fernandez|Pradeep Gupta
+direct-17,oneOnOne,Pradeep Gupta and Adele Vance,Pradeep Gupta|Adele Vance
+direct-extra-01,oneOnOne,Adele Vance and Henrietta Mueller,Adele Vance|Henrietta Mueller
+direct-extra-02,oneOnOne,Alex Wilber and Isaiah Langer,Alex Wilber|Isaiah Langer
+direct-extra-03,oneOnOne,Diego Siciliani and Johanna Lorenz,Diego Siciliani|Johanna Lorenz
+direct-extra-04,oneOnOne,Grady Archie and Joni Sherman,Grady Archie|Joni Sherman
+direct-extra-05,oneOnOne,Henrietta Mueller and Lee Gu,Henrietta Mueller|Lee Gu
+direct-extra-06,oneOnOne,Isaiah Langer and Lidia Holloway,Isaiah Langer|Lidia Holloway
+direct-extra-07,oneOnOne,Johanna Lorenz and Lynne Robbins,Johanna Lorenz|Lynne Robbins
+direct-extra-08,oneOnOne,Joni Sherman and Megan Bowen,Joni Sherman|Megan Bowen
+direct-extra-09,oneOnOne,Lee Gu and Miriam Graham,Lee Gu|Miriam Graham
+direct-extra-10,oneOnOne,Lidia Holloway and Nestor Wilke,Lidia Holloway|Nestor Wilke
+direct-extra-11,oneOnOne,Lynne Robbins and Nicolai Dahl Madsen,Lynne Robbins|Nicolai Dahl Madsen
+direct-extra-12,oneOnOne,Megan Bowen and Patti Fernandez,Megan Bowen|Patti Fernandez
+direct-extra-13,oneOnOne,Miriam Graham and Pradeep Gupta,Miriam Graham|Pradeep Gupta
+direct-extra-14,oneOnOne,Nestor Wilke and Adele Vance,Nestor Wilke|Adele Vance
+direct-extra-15,oneOnOne,Nicolai Dahl Madsen and Alex Wilber,Nicolai Dahl Madsen|Alex Wilber
+direct-extra-16,oneOnOne,Patti Fernandez and Diego Siciliani,Patti Fernandez|Diego Siciliani
+direct-extra-17,oneOnOne,Pradeep Gupta and Grady Archie,Pradeep Gupta|Grady Archie
+direct-additional-01,oneOnOne,Adele Vance and Miriam Graham,Adele Vance|Miriam Graham
+direct-additional-02,oneOnOne,Diego Siciliani and Nestor Wilke,Diego Siciliani|Nestor Wilke
+direct-additional-03,oneOnOne,Nicolai Dahl Madsen and Henrietta Mueller,Nicolai Dahl Madsen|Henrietta Mueller
+direct-additional-04,oneOnOne,Lynne Robbins and Pradeep Gupta,Lynne Robbins|Pradeep Gupta
+direct-additional-05,oneOnOne,Alex Wilber and Patti Fernandez,Alex Wilber|Patti Fernandez
+direct-additional-06,oneOnOne,Lee Gu and Miriam Graham,Lee Gu|Miriam Graham

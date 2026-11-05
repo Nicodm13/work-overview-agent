@@ -1,31 +1,24 @@
 {
-  "displayName": "Northstar Community Open Day",
-  "description": "Two weeks of planning for a community open day. Each work group has one email follow-up, one Teams follow-up, and one meeting to arrange.",
+  "companyName": "Northstar Advisory",
+  "displayName": "Northstar Advisory - Office Move",
+  "description": "Coordination for the Northstar Advisory office move.",
   "visibility": "private",
   "channels": [
     {
       "displayName": "General",
-      "description": "Shared event updates and decisions."
+      "description": "Discussion and updates for the office move."
     },
     {
-      "displayName": "Planning",
-      "description": "Event schedule and coordination."
+      "displayName": "Move Planning",
+      "description": "Discussion and updates for the office move."
     },
     {
-      "displayName": "Food and Catering",
-      "description": "Guest counts, dietary needs, and the catering order."
+      "displayName": "Workplace and Facilities",
+      "description": "Discussion and updates for the office move."
     },
     {
-      "displayName": "Room Setup",
-      "description": "Tables, seating, and accessible routes."
-    },
-    {
-      "displayName": "Volunteers",
-      "description": "Volunteer shifts and briefings."
-    },
-    {
-      "displayName": "Guest Information",
-      "description": "RSVPs, signs, and welcome materials."
+      "displayName": "People and Communications",
+      "description": "Discussion and updates for the office move."
     }
   ]
 }
