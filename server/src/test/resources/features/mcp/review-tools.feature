@@ -1,8 +1,8 @@
 Feature: Review MCP tools
 
   Scenario: Get review exposes the review service through MCP
-    When the get_review MCP tool is called from "2026-09-04T00:00:00Z" to "2026-09-04T23:59:59Z"
-    Then the MCP response contains 4 review items
+    When the get_review MCP tool is called for the selected mock evidence
+    Then the MCP response contains 1 review item
     And the MCP response uses daily overview purpose
 
   Scenario: Get review accepts a selected source type and review purpose

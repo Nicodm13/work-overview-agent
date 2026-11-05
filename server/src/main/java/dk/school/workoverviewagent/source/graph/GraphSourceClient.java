@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-final class GraphSourceClient {
+public final class GraphSourceClient {
 
     private static final int MAX_PAGES = 20;
 
@@ -28,7 +28,7 @@ final class GraphSourceClient {
         this.root = root;
     }
 
-    Session open(SourceRequest request) {
+    public Session open(SourceRequest request) {
         if (!request.ownerId().equals(userProvider.getUserId())) {
             throw new SecurityException("Source request owner does not match the authenticated user");
         }
@@ -39,13 +39,13 @@ final class GraphSourceClient {
         return new Session(tokenProvider.getAccessToken());
     }
 
-    URI uri(String path, Map<String, String> query) {
+    public URI uri(String path, Map<String, String> query) {
         var builder = UriComponentsBuilder.fromUri(root).path(path);
         query.forEach(builder::queryParam);
         return builder.build().encode().toUri();
     }
 
-    URI uriSegments(Map<String, String> query, String... segments) {
+    public URI uriSegments(Map<String, String> query, String... segments) {
         var builder = UriComponentsBuilder.fromUri(root).pathSegment(segments);
         query.forEach(builder::queryParam);
         return builder.build().encode().toUri();
@@ -59,7 +59,7 @@ final class GraphSourceClient {
         }
     }
 
-    final class Session {
+    public final class Session {
 
         private final String token;
 
@@ -67,7 +67,7 @@ final class GraphSourceClient {
             this.token = token;
         }
 
-        ListResult list(URI firstPage) {
+        public ListResult list(URI firstPage) {
             var items = new ArrayList<Map<String, Object>>();
             URI next = firstPage;
             var pageCount = 0;
@@ -82,7 +82,7 @@ final class GraphSourceClient {
         }
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> getJson(URI uri) {
+        public Map<String, Object> getJson(URI uri) {
             requireGraphUri(uri);
             var body = restClient.get().uri(uri)
                 .headers(headers -> headers.setBearerAuth(token))
@@ -113,6 +113,6 @@ final class GraphSourceClient {
 
     }
 
-    record ListResult(List<Map<String, Object>> items, boolean truncated) {
+    public record ListResult(List<Map<String, Object>> items, boolean truncated) {
     }
 }

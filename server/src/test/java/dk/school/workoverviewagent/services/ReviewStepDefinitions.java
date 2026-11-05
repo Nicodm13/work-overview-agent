@@ -7,22 +7,24 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.time.Instant;
 import java.util.List;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class ReviewStepDefinitions {
     @Autowired
     private IReviewService reviewService;
+    @Autowired
+    private Instant mockEvidenceTimestamp;
     private dk.school.workoverviewagent.review.contract.ReviewResponse review;
 
-    @When("the review service reviews {string} to {string}")
-    public void reviewInterval(String startsAt, String endsAt) {
+    @When("the review service reviews the selected mock evidence")
+    public void reviewInterval() {
         review = reviewService.reviewWorkContext(new ReviewRequest(
             "user-1",
-            Instant.parse(startsAt),
-            Instant.parse(endsAt),
+            mockEvidenceTimestamp,
+            mockEvidenceTimestamp,
             List.of(),
             ReviewPurpose.DAILY_OVERVIEW));
     }

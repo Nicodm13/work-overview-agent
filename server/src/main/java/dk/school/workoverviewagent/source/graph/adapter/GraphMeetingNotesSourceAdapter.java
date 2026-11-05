@@ -1,4 +1,4 @@
-package dk.school.workoverviewagent.source.graph;
+package dk.school.workoverviewagent.source.graph.adapter;
 
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.source.api.ISourceAdapter;
@@ -6,6 +6,8 @@ import dk.school.workoverviewagent.source.contract.SourceItem;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
 import dk.school.workoverviewagent.source.contract.SourceResult;
 import dk.school.workoverviewagent.source.filter.SourceItemFilter;
+import dk.school.workoverviewagent.source.graph.GraphSourceClient;
+import dk.school.workoverviewagent.source.graph.GraphValues;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -23,7 +25,7 @@ import java.util.Map;
 
 @Component
 @ConditionalOnProperty(prefix = "work-overview.sources", name = "provider", havingValue = "graph", matchIfMissing = true)
-class GraphMeetingNotesSourceAdapter implements ISourceAdapter {
+public class GraphMeetingNotesSourceAdapter implements ISourceAdapter {
 
     private static final int MAX_DOCX_BYTES = 5 * 1024 * 1024;
     private static final int MAX_TEXT_LENGTH = 32_000;
@@ -31,7 +33,7 @@ class GraphMeetingNotesSourceAdapter implements ISourceAdapter {
     private final GraphSourceClient graph;
     private final SourceItemFilter filter;
 
-    GraphMeetingNotesSourceAdapter(GraphSourceClient graph, SourceItemFilter filter) {
+    public GraphMeetingNotesSourceAdapter(GraphSourceClient graph, SourceItemFilter filter) {
         this.graph = graph;
         this.filter = filter;
     }

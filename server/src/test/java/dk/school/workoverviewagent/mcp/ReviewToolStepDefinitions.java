@@ -6,6 +6,7 @@ import dk.school.workoverviewagent.review.contract.ReviewPurpose;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -13,19 +14,21 @@ public class ReviewToolStepDefinitions {
 
     @Autowired
     private ReviewTools reviewTools;
+    @Autowired
+    private Instant mockEvidenceTimestamp;
 
     private ReviewResponse response;
 
-    @When("the get_review MCP tool is called from {string} to {string}")
-    public void getReview(String startsAt, String endsAt) {
-        response = reviewTools.getReview(startsAt, endsAt, null, null);
+    @When("the get_review MCP tool is called for the selected mock evidence")
+    public void getReview() {
+        response = reviewTools.getReview(mockEvidenceTimestamp.toString(), mockEvidenceTimestamp.toString(), null, null);
     }
 
     @When("the get_review MCP tool is called for source type {string} with purpose {string}")
     public void getReviewWithSelectedSourceType(String sourceType, String reviewPurpose) {
         response = reviewTools.getReview(
-            "2026-09-04T00:00:00Z",
-            "2026-09-04T23:59:59Z",
+            mockEvidenceTimestamp.toString(),
+            mockEvidenceTimestamp.toString(),
             java.util.List.of(SourceType.valueOf(sourceType)),
             ReviewPurpose.valueOf(reviewPurpose));
     }

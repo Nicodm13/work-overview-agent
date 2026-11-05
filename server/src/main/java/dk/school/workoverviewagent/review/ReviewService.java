@@ -1,10 +1,7 @@
 package dk.school.workoverviewagent.review;
 
 import dk.school.workoverviewagent.evidence.api.IEvidenceService;
-import dk.school.workoverviewagent.model.StatusSource;
-import dk.school.workoverviewagent.model.WorkStatus;
 import dk.school.workoverviewagent.review.api.IReviewService;
-import dk.school.workoverviewagent.review.contract.OverviewItem;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.review.contract.ReviewResponse;
 import dk.school.workoverviewagent.source.api.ISourceAdapterLayer;
@@ -40,28 +37,14 @@ public class ReviewService implements IReviewService {
             request.endsAt(),
             request.sources()));
         var evidenceItems = evidenceService.captureEvidence(request, sourceData);
-        var overviewItems = evidenceItems.stream()
-            .map(this::toOverviewItem)
-            .toList();
 
         return new ReviewResponse(
             UUID.randomUUID().toString(),
             request,
             Instant.now(),
-            overviewItems,
+            evidenceItems,
             sourceData == null ? List.of("No source data was returned; review is unavailable.") : sourceData.limitations(),
             sourceData == null ? SourceCoverage.FAILED : sourceData.coverage());
     }
 
-    private OverviewItem toOverviewItem(dk.school.workoverviewagent.model.EvidenceItem evidenceItem) {
-        return new OverviewItem(
-            evidenceItem.id(),
-            evidenceItem.title(),
-            evidenceItem.summary(),
-            "UNRANKED",
-            evidenceItem.evidenceStatus(),
-            evidenceItem.references(),
-            WorkStatus.UNVERIFIED,
-            StatusSource.DIGITAL_EVIDENCE);
-    }
 }
