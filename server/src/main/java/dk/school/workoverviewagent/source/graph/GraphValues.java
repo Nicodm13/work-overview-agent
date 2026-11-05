@@ -9,29 +9,29 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
-final class GraphValues {
+public final class GraphValues {
 
     private GraphValues() {
     }
 
-    static String string(Map<String, Object> value, String key) {
+    public static String string(Map<String, Object> value, String key) {
         var result = value.get(key);
         return result instanceof String text && !text.isBlank() ? text : null;
     }
 
     @SuppressWarnings("unchecked")
-    static Map<String, Object> object(Map<String, Object> value, String key) {
+    public static Map<String, Object> object(Map<String, Object> value, String key) {
         var result = value.get(key);
         return result instanceof Map<?, ?> ? (Map<String, Object>) result : Map.of();
     }
 
     @SuppressWarnings("unchecked")
-    static List<Map<String, Object>> objects(Map<String, Object> value, String key) {
+    public static List<Map<String, Object>> objects(Map<String, Object> value, String key) {
         var result = value.get(key);
         return result instanceof List<?> ? (List<Map<String, Object>>) result : List.of();
     }
 
-    static Instant instant(Map<String, Object> value, String key) {
+    public static Instant instant(Map<String, Object> value, String key) {
         var text = string(value, key);
         if (text == null) {
             return null;
@@ -47,11 +47,11 @@ final class GraphValues {
         }
     }
 
-    static String htmlText(String html) {
+    public static String htmlText(String html) {
         return html == null ? "" : Jsoup.parse(html).body().text();
     }
 
-    static String emailAddress(Map<String, Object> value) {
+    public static String emailAddress(Map<String, Object> value) {
         return string(object(value, "emailAddress"), "address");
     }
 }

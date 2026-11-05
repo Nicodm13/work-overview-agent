@@ -15,7 +15,18 @@ public record ActionDraft(
     Instant selectedStartsAt,
     Instant selectedEndsAt,
     List<String> agenda,
-    String editableContext) {
+    String editableContext,
+    ActionStatus status,
+    Instant createdAt,
+    Instant statusUpdatedAt) {
+
+    public ActionDraft(
+        String id, String ownerId, ActionType actionType, String followUpItemId, List<String> recipients,
+        String subject, String body, String meetingTitle, Instant selectedStartsAt, Instant selectedEndsAt,
+        List<String> agenda, String editableContext) {
+        this(id, ownerId, actionType, followUpItemId, recipients, subject, body, meetingTitle,
+            selectedStartsAt, selectedEndsAt, agenda, editableContext, null, null, null);
+    }
 
     public ActionDraft {
         recipients = recipients == null ? List.of() : List.copyOf(recipients);

@@ -6,6 +6,7 @@ import dk.school.workoverviewagent.review.contract.ReviewResponse;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,13 +16,16 @@ public class EvidenceToolStepDefinitions {
     private ReviewTools reviewTools;
     @Autowired
     private EvidenceTools evidenceTools;
+    @Autowired
+    private Instant mockEvidenceTimestamp;
 
     private ReviewResponse reviewResponse;
     private EvidenceResponse evidenceResponse;
 
-    @When("the evidence tool scenario requests a Teams-only review from {string} to {string}")
-    public void getReview(String startsAt, String endsAt) {
-        reviewResponse = reviewTools.getReview(startsAt, endsAt, java.util.List.of(SourceType.TEAMS), null);
+    @When("the evidence tool scenario requests a Teams-only review of the selected mock evidence")
+    public void getReview() {
+        reviewResponse = reviewTools.getReview(mockEvidenceTimestamp.toString(), mockEvidenceTimestamp.toString(),
+            java.util.List.of(SourceType.TEAMS), null);
     }
 
     @When("the get_item_evidence MCP tool is called for the first review item")

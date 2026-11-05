@@ -47,7 +47,7 @@ public class EvidenceStepDefinitions {
     @Then("the evidence is captured with source type {string} and status {string}")
     public void evidenceCaptured(String sourceType, String status) {
         assertThat(evidenceItems).singleElement().satisfies(item -> {
-            assertThat(item.references()).singleElement().satisfies(reference ->
+            assertThat(item.evidenceReferences()).singleElement().satisfies(reference ->
                 assertThat(reference.sourceType()).isEqualTo(SourceType.valueOf(sourceType)));
             assertThat(item.evidenceStatus()).isEqualTo(EvidenceStatus.valueOf(status));
         });

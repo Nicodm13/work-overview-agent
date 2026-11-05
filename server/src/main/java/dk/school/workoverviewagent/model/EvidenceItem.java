@@ -7,9 +7,9 @@ public record EvidenceItem(
     String title,
     String summary,
     EvidenceStatus evidenceStatus,
-    List<EvidenceReference> references) {
+    List<EvidenceReference> evidenceReferences) {
 
     public EvidenceItem {
-        references = references == null ? List.of() : List.copyOf(references);
+        evidenceReferences = evidenceReferences == null ? List.of() : List.copyOf(evidenceReferences);
     }
 }

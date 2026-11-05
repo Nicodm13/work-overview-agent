@@ -11,4 +11,3 @@ Thumbs.db
 .env.*
 !.env.example
 server/.local-tls/
-server/scripts/test-seed-state.json

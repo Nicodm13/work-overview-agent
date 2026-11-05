@@ -23,7 +23,7 @@ class SourceModeConfigurationTest {
             assertThat(context).hasNotFailed();
             assertThat(context.getBeansOfType(ISourceAdapter.class).values())
                 .hasSize(4)
-                .allMatch(adapter -> adapter.getClass().getPackageName().endsWith("source.graph"));
+                .allMatch(adapter -> adapter.getClass().getPackageName().endsWith("source.graph.adapter"));
             assertThat(context).doesNotHaveBean("mockSourceDataLoader");
             assertThat(context).hasBean("graphSourceClient");
         });

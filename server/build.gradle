@@ -74,21 +74,23 @@ tasks.register('bootRunMocked', org.springframework.boot.gradle.tasks.run.BootRu
 
 def graphTestDataSeedScript = layout.projectDirectory.file('scripts/seed-graph-test-data.ps1').asFile.absolutePath
 def graphTestDataCleanupScript = layout.projectDirectory.file('scripts/remove-graph-test-data.ps1').asFile.absolutePath
+def graphMaxConcurrency = providers.gradleProperty('graphMaxConcurrency').getOrElse('16')
 
 tasks.register('seedGraphTestData', Exec) {
     group = 'microsoft 365 test data'
     description = 'Seeds Microsoft Graph test data and sends dataset emails and meeting invitations to the sandbox.'
     commandLine 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', graphTestDataSeedScript,
-        '-ConfirmSandboxTenant'
+        '-ConfirmSandboxTenant', '-MaxConcurrency', graphMaxConcurrency
 }
 
 tasks.register('clearGraphTestData', Exec) {
     group = 'microsoft 365 test data'
-    description = 'Deletes mailbox, calendar, chat, and Team data in the disposable Microsoft 365 sandbox.'
-    commandLine 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', graphTestDataCleanupScript,
+    description = 'Deletes sandbox mailbox and calendar items, Teams messages, and the dataset Team while preserving chats.'
+    def cleanupArgs = [
         '-Apply', '-RemoveAllMailboxAndCalendarItems', '-ConfirmCalendarCancellations',
-        '-RemoveAllChatsForListedUsers', '-ConfirmChatDeletion', '-RemoveAllTeamsAndChannelPosts',
-        '-ConfirmTeamAndGroupResourceDeletion', '-ConfirmSandboxTenant'
+        '-ConfirmTeamsMessageDeletion', '-ConfirmSandboxTenant', '-MaxConcurrency', graphMaxConcurrency
+    ]
+    commandLine(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', graphTestDataCleanupScript] + cleanupArgs)
 }
 
 def composeFile = layout.projectDirectory.file('compose.yaml').asFile.absolutePath

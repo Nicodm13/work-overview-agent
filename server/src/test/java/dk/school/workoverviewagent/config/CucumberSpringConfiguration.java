@@ -3,6 +3,9 @@ package dk.school.workoverviewagent.config;
 import dk.school.workoverviewagent.Application;
 import io.cucumber.spring.CucumberContextConfiguration;
 import dk.school.workoverviewagent.user.IUserProvider;
+import dk.school.workoverviewagent.model.SourceType;
+import dk.school.workoverviewagent.source.mock.MockSourceDataLoader;
+import java.time.Instant;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -36,9 +39,26 @@ public class CucumberSpringConfiguration {
     static class TestUserConfiguration {
 
         @Bean
+        Instant mockEvidenceTimestamp(MockSourceDataLoader loader) {
+            return loader.loadItems("teams.csv", SourceType.TEAMS).stream()
+                .filter(item -> item.id().equals("office-chat-15-03"))
+                .findFirst().orElseThrow().occurredAt();
+        }
+
+        @Bean
         @Primary
         IUserProvider testUserProvider() {
-            return () -> "test-tenant:test-user";
+            return new IUserProvider() {
+                @Override
+                public String getUserId() {
+                    return "test-tenant:test-user";
+                }
+
+                @Override
+                public String getUserPrincipalName() {
+                    return "nidm@v0lsc8f0.onmicrosoft.com";
+                }
+            };
         }
     }
 }

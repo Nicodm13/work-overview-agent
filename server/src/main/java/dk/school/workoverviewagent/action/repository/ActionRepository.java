@@ -98,11 +98,13 @@ class ActionRepository implements IActionRepository {
     public Optional<ActionDraft> findDraftById(String ownerId, String draftId) {
         return jdbc.query(
                 """
-                    SELECT ID, OWNER_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, RECIPIENTS,
-                           SUBJECT, BODY, MEETING_TITLE, SELECTED_STARTS_AT,
-                           SELECTED_ENDS_AT, AGENDA, EDITABLE_CONTEXT
-                    FROM ACTION_DRAFT
-                    WHERE OWNER_ID = ? AND ID = ?
+                    SELECT DRAFT.ID, DRAFT.OWNER_ID, DRAFT.FOLLOW_UP_ITEM_ID, DRAFT.ACTION_TYPE, DRAFT.RECIPIENTS,
+                           DRAFT.SUBJECT, DRAFT.BODY, DRAFT.MEETING_TITLE, DRAFT.SELECTED_STARTS_AT,
+                           DRAFT.SELECTED_ENDS_AT, DRAFT.AGENDA, DRAFT.EDITABLE_CONTEXT, STATE.STATUS,
+                           DRAFT.CREATED, STATE.UPDATED_AT AS STATUS_UPDATED_AT
+                    FROM ACTION_DRAFT DRAFT
+                    JOIN ACTION_STATE STATE ON STATE.OWNER_ID = DRAFT.OWNER_ID AND STATE.DRAFT_ID = DRAFT.ID
+                    WHERE DRAFT.OWNER_ID = ? AND DRAFT.ID = ?
                     """,
                 (resultSet, rowNumber) -> draft(resultSet),
                 ownerId,
@@ -152,11 +154,12 @@ class ActionRepository implements IActionRepository {
             """
                 SELECT DRAFT.ID, DRAFT.OWNER_ID, DRAFT.FOLLOW_UP_ITEM_ID, DRAFT.ACTION_TYPE, DRAFT.RECIPIENTS,
                        DRAFT.SUBJECT, DRAFT.BODY, DRAFT.MEETING_TITLE, DRAFT.SELECTED_STARTS_AT,
-                       DRAFT.SELECTED_ENDS_AT, DRAFT.AGENDA, DRAFT.EDITABLE_CONTEXT
+                       DRAFT.SELECTED_ENDS_AT, DRAFT.AGENDA, DRAFT.EDITABLE_CONTEXT, STATE.STATUS,
+                       DRAFT.CREATED, STATE.UPDATED_AT AS STATUS_UPDATED_AT
                 FROM ACTION_DRAFT DRAFT
                 JOIN ACTION_STATE STATE ON STATE.OWNER_ID = DRAFT.OWNER_ID AND STATE.DRAFT_ID = DRAFT.ID
                 WHERE DRAFT.OWNER_ID = ?
-                  AND STATE.STATUS IN ('DRAFT', 'APPROVED')
+                  AND STATE.STATUS IN ('DRAFT', 'APPROVED', 'EXECUTING', 'FAILED')
                 ORDER BY STATE.UPDATED_AT, DRAFT.ID
                 """,
             (resultSet, rowNumber) -> draft(resultSet),
@@ -321,7 +324,10 @@ class ActionRepository implements IActionRepository {
             instant(resultSet, "SELECTED_STARTS_AT"),
             instant(resultSet, "SELECTED_ENDS_AT"),
             deserialize(resultSet.getString("AGENDA")),
-            resultSet.getString("EDITABLE_CONTEXT"));
+            resultSet.getString("EDITABLE_CONTEXT"),
+            ActionStatus.valueOf(resultSet.getString("STATUS")),
+            resultSet.getTimestamp("CREATED").toInstant(),
+            resultSet.getTimestamp("STATUS_UPDATED_AT").toInstant());
     }
 
     private AuditLogEntry auditEntry(ResultSet resultSet) throws SQLException {

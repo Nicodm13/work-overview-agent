@@ -1,4 +1,4 @@
-package dk.school.workoverviewagent.source.graph;
+package dk.school.workoverviewagent.source.graph.adapter;
 
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.source.api.ISourceAdapter;
@@ -6,6 +6,8 @@ import dk.school.workoverviewagent.source.contract.SourceItem;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
 import dk.school.workoverviewagent.source.contract.SourceResult;
 import dk.school.workoverviewagent.source.filter.SourceItemFilter;
+import dk.school.workoverviewagent.source.graph.GraphSourceClient;
+import dk.school.workoverviewagent.source.graph.GraphValues;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -17,14 +19,14 @@ import java.util.Map;
 
 @Component
 @ConditionalOnProperty(prefix = "work-overview.sources", name = "provider", havingValue = "graph", matchIfMissing = true)
-class GraphOutlookSourceAdapter implements ISourceAdapter {
+public class GraphOutlookSourceAdapter implements ISourceAdapter {
 
-    private static final String SELECT = "id,subject,bodyPreview,receivedDateTime,sentDateTime,from,toRecipients,webLink";
+    private static final String SELECT = "id,subject,body,receivedDateTime,sentDateTime,from,toRecipients,webLink";
 
     private final GraphSourceClient graph;
     private final SourceItemFilter filter;
 
-    GraphOutlookSourceAdapter(GraphSourceClient graph, SourceItemFilter filter) {
+    public GraphOutlookSourceAdapter(GraphSourceClient graph, SourceItemFilter filter) {
         this.graph = graph;
         this.filter = filter;
     }
@@ -78,7 +80,7 @@ class GraphOutlookSourceAdapter implements ISourceAdapter {
                 sourceType(),
                 occurredAt,
                 valueOr(GraphValues.string(message, "subject"), "(no subject)"),
-                valueOr(GraphValues.string(message, "bodyPreview"), ""),
+                messageBody(message),
                 valueOr(GraphValues.emailAddress(GraphValues.object(message, "from")), "Unknown sender"),
                 recipients,
                 attributes));
@@ -101,5 +103,12 @@ class GraphOutlookSourceAdapter implements ISourceAdapter {
 
     private static String valueOr(String value, String fallback) {
         return value == null ? fallback : value;
+    }
+
+    private static String messageBody(Map<String, Object> message) {
+        var body = GraphValues.object(message, "body");
+        var content = valueOr(GraphValues.string(body, "content"), "");
+        return "html".equalsIgnoreCase(GraphValues.string(body, "contentType"))
+            ? GraphValues.htmlText(content) : content;
     }
 }

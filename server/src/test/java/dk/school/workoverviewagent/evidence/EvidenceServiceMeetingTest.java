@@ -18,6 +18,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 class EvidenceServiceMeetingTest {
 
@@ -40,5 +41,29 @@ class EvidenceServiceMeetingTest {
         verify(repository).save(org.mockito.ArgumentMatchers.eq("tenant:user"), saved.capture());
         assertThat(saved.getValue().excerpt()).hasSizeLessThanOrEqualTo(160);
         assertThat(saved.getValue().excerpt()).isNotEqualTo(text);
+    }
+
+    @Test
+    void returnsSourceContentForReviewWhilePersistingOnlyExcerpts() {
+        var repository = mock(IEvidenceRepository.class);
+        var text = "Context ".repeat(30) + "Please respond by Friday.";
+        var timestamp = Instant.parse("2026-10-15T12:00:00Z");
+        var sources = List.of(SourceType.OUTLOOK, SourceType.TEAMS, SourceType.CALENDAR).stream()
+            .map(type -> new SourceItem(type.name(), type, timestamp, "Subject", text,
+                "sender@example.com", List.of(), Map.of()))
+            .toList();
+        var request = new ReviewRequest("tenant:user", timestamp.minusSeconds(1), timestamp.plusSeconds(1),
+            List.of(), ReviewPurpose.DAILY_OVERVIEW);
+
+        var result = new EvidenceService(repository).captureEvidence(request,
+            new SourceData(sources, List.of(), SourceCoverage.COMPLETE));
+
+        assertThat(result).extracting(item -> item.summary()).containsExactly(text, text, text);
+        var saved = ArgumentCaptor.forClass(EvidenceReference.class);
+        verify(repository, times(3)).save(org.mockito.ArgumentMatchers.eq("tenant:user"), saved.capture());
+        assertThat(saved.getAllValues()).allSatisfy(reference -> {
+            assertThat(reference.excerpt()).hasSizeLessThanOrEqualTo(160);
+            assertThat(reference.excerpt()).doesNotContain("Please respond by Friday.");
+        });
     }
 }

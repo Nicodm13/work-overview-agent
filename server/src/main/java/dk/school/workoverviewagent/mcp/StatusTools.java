@@ -43,7 +43,7 @@ public class StatusTools {
 
     @McpTool(
         name = "find_new_evidence",
-        description = "Return explicitly linked evidence captured after an item's latest user-confirmed resolution. This does not determine a conflict, reopen an item, or update its status.",
+        description = "Return explicitly linked evidence whose source timestamp is after the item's latest user-confirmed resolution. This does not determine a conflict, reopen an item, or update its status.",
         generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = true,

@@ -68,8 +68,8 @@ repository:
 
 Run `Docker - Start Database` before `Start MCP Server`. The old generic `Application` run
 configuration is not shared. Use `Tests - Run` to execute the full Gradle test suite from IntelliJ. The two Microsoft
-Graph configurations seed or clear data in the disposable sandbox; `Microsoft Graph - Clear Data` permanently deletes scoped data
-and associated Team group resources.
+Graph configurations seed or clear data in the disposable sandbox; `Microsoft Graph - Clear Data` removes mailbox and
+calendar items and permanently purges Teams messages while preserving the user accounts and chat/team/channel containers.
 
 The live source mode calls Microsoft Graph using the signed-in user's delegated token. It reads
 Outlook messages, default-calendar events, Teams chats, channel posts and returned thread replies
@@ -177,6 +177,7 @@ The MCP source adapters and action delivery use delegated Microsoft Graph permis
 
 - `Mail.Read` for Outlook email and DOCX meeting-minute attachments.
 - `Calendars.Read` for calendar events and shared free/busy availability with the `find_meeting_times` MCP tool.
+- `User.Read` for the signed-in user's `/me` profile used when checking meeting availability.
 - `Chat.Read` for the signed-in user's Teams chats.
 - `Team.ReadBasic.All` for listing teams the signed-in user belongs to.
 - `Channel.ReadBasic.All` for listing accessible channels in those teams.
@@ -205,10 +206,37 @@ authority. It never uses application permissions. When Entra reports missing Gra
 denies source access, the review reports source-specific guidance without exposing token details or
 raw Graph error responses. Other source failures remain generic limitations.
 
-The test-data seed script is a separate app-only client-credentials flow. It uses the same sandbox app
-registration's client ID and secret, but only for the script's Graph writes and historical Teams import. The MCP server
-continues to call Graph through its delegated on-behalf-of flow. Remove the temporary application permissions and
-admin consent after seeding is complete.
+The test-data scripts use app-only client credentials from the sandbox app registration. These
+application permissions are separate from the delegated permissions used by the MCP server. Grant
+admin consent for the following application permissions while running the scripts:
+
+| Application permission | Used by | Purpose |
+| --- | --- | --- |
+| `User.Read.All` | Seed | Resolve the 17 test users and their Graph IDs. |
+| `Team.Create` | Seed | Create the seeded team. |
+| `Team.ReadBasic.All` | Seed and Clear | Find teams while seeding and check for existing channel messages before Teams cleanup. |
+| `Channel.Create` | Seed | Create seeded team channels. |
+| `Channel.ReadBasic.All` | Seed and Clear | Find existing channels and enumerate channels for the Clear Data precheck. |
+| `ChannelMessage.Read.All` | Clear | Enumerate channel messages before delegated deletion. |
+| `TeamMember.ReadWriteNonOwnerRole.All` | Seed | Add test users to the seeded team. |
+| `Chat.Create` | Seed | Create seeded group and one-to-one chats. |
+| `Chat.Read.All` | Seed and Clear | Inspect existing chats and check for active chat messages. |
+| `ChatMember.ReadWrite.All` | Seed | Set the intended membership of seeded chats. |
+| `Chat.ManageDeletion.All` | Seed | Restore a soft-deleted seeded chat when it needs reuse. |
+| `Teamwork.Migrate.All` | Seed | Import historical chat and channel messages with their seeded authors and timestamps. |
+| `Mail.ReadWrite` | Seed and Clear | Find, create, update, and delete seeded mailbox messages. |
+| `Mail.Send` | Seed | Send seeded email messages. |
+| `Calendars.ReadWrite` | Seed and Clear | Create seeded calendar events and remove events during cleanup. |
+
+`Group.ReadWrite.All` is not required by these scripts and does not replace
+`ChannelMessage.Read.All` for the Clear Data channel-message check. The channel-message API requires
+`ChannelMessage.Read.All` (or resource-specific `ChannelMessage.Read.Group` where the app is granted
+access to the specific team); the current precheck scans channels across the sandbox.
+
+Run `Microsoft Graph - Clear Data` before `Microsoft Graph - Seed Data` for a fresh test run. Clear Data authenticates as each test message author and soft-deletes chat and channel messages while retaining the existing one-to-one chats, group chats, Team, and channels. It verifies that messages are no longer readable before deleting mailbox and calendar items. Add `WORK_OVERVIEW_TEST_USER_PASSWORD` to the Git-ignored `server/.env` if all test accounts share a password. The app registration needs delegated Graph permissions `Chat.ReadWrite`, `ChannelMessage.ReadWrite`, and `User.Read` with admin consent. Password sign-in requires the test accounts to be allowed to use the ROPC flow. The cleanup script checks all authors and credentials before deleting any messages.
+
+Remove the temporary application permissions and admin consent when the sandbox seed/clear scripts
+are no longer needed.
 
 ## Notes
 

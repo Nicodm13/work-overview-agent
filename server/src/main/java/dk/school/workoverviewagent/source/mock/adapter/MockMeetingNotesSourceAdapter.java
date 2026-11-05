@@ -2,11 +2,11 @@ package dk.school.workoverviewagent.source.mock.adapter;
 
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.source.api.ISourceAdapter;
-import dk.school.workoverviewagent.source.contract.SourceItem;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
 import dk.school.workoverviewagent.source.contract.SourceResult;
 import dk.school.workoverviewagent.source.filter.SourceItemFilter;
 import dk.school.workoverviewagent.source.mock.MockSourceDataLoader;
+import dk.school.workoverviewagent.user.IUserProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
@@ -17,11 +17,16 @@ import java.util.List;
 class MockMeetingNotesSourceAdapter implements ISourceAdapter {
 
     private final SourceItemFilter sourceItemFilter;
-    private final List<SourceItem> items;
+    private final MockSourceDataLoader dataLoader;
+    private final IUserProvider userProvider;
 
-    MockMeetingNotesSourceAdapter(SourceItemFilter sourceItemFilter, MockSourceDataLoader dataLoader) {
+    MockMeetingNotesSourceAdapter(
+        SourceItemFilter sourceItemFilter,
+        MockSourceDataLoader dataLoader,
+        IUserProvider userProvider) {
         this.sourceItemFilter = sourceItemFilter;
-        this.items = dataLoader.loadMeetingNoteItems();
+        this.dataLoader = dataLoader;
+        this.userProvider = userProvider;
     }
 
     @Override
@@ -31,6 +36,7 @@ class MockMeetingNotesSourceAdapter implements ISourceAdapter {
 
     @Override
     public SourceResult load(SourceRequest request) {
+        var items = dataLoader.loadMeetingNoteItemsForUser(userProvider.getUserPrincipalName());
         return new SourceResult(SourceType.MEETING_NOTES, sourceItemFilter.matching(request, items), List.of());
     }
 }

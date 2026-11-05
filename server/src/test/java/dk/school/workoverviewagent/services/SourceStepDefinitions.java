@@ -8,22 +8,24 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.time.Instant;
 import java.util.List;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class SourceStepDefinitions {
     @Autowired
     private ISourceAdapterLayer sourceAdapterLayer;
+    @Autowired
+    private Instant mockEvidenceTimestamp;
     private SourceData sourceData;
 
-    @Given("the prototype source interval is from {string} to {string}")
-    public void sourceInterval(String startsAt, String endsAt) {
+    @Given("the prototype source interval covers the selected mock evidence")
+    public void sourceInterval() {
         sourceData = sourceAdapterLayer.loadSources(new SourceRequest(
             "user-1",
-            Instant.parse(startsAt),
-            Instant.parse(endsAt),
+            mockEvidenceTimestamp,
+            mockEvidenceTimestamp,
             List.of()));
     }
 
