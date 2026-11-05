@@ -49,7 +49,7 @@ class GraphSourceAdaptersTest {
     @Test
     void loadsIncomingAndSentOutlookMessagesWithoutDuplicates() {
         expectJson("/me/messages", """
-            {"value":[{"id":"mail-1","subject":"Question","bodyPreview":"Please reply",
+            {"value":[{"id":"mail-1","subject":"Question","body":{"contentType":"html","content":"<p>Please reply</p><p>Details after the preview.</p>"},
               "receivedDateTime":"2026-10-02T10:00:00Z",
               "from":{"emailAddress":{"address":"sender@example.com"}},
               "toRecipients":[{"emailAddress":{"address":"user@example.com"}}],
@@ -57,7 +57,7 @@ class GraphSourceAdaptersTest {
             """);
         expectJson("/me/messages", """
             {"value":[{"id":"mail-1","subject":"Question","sentDateTime":"2026-10-02T10:00:00Z"},
-              {"id":"mail-2","subject":"Re: Question","bodyPreview":"Answered",
+              {"id":"mail-2","subject":"Re: Question","body":{"contentType":"text","content":"Answered: 2 < 3"},
               "sentDateTime":"2026-10-03T11:00:00Z",
               "from":{"emailAddress":{"address":"user@example.com"}},
               "toRecipients":[{"emailAddress":{"address":"sender@example.com"}}]}]}
@@ -66,6 +66,8 @@ class GraphSourceAdaptersTest {
         var result = new GraphOutlookSourceAdapter(graph, filter).load(request);
 
         assertThat(result.items()).extracting(item -> item.id()).containsExactly("mail-1", "mail-2");
+        assertThat(result.items()).extracting(item -> item.content())
+            .containsExactly("Please reply Details after the preview.", "Answered: 2 < 3");
         assertThat(result.items().getFirst().senderOrOrganizer()).isEqualTo("sender@example.com");
         assertThat(result.items().getFirst().participants()).containsExactly("user@example.com");
         assertThat(result.items().getFirst().attributes()).containsEntry(

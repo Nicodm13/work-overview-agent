@@ -21,7 +21,7 @@ import java.util.Map;
 @ConditionalOnProperty(prefix = "work-overview.sources", name = "provider", havingValue = "graph", matchIfMissing = true)
 public class GraphOutlookSourceAdapter implements ISourceAdapter {
 
-    private static final String SELECT = "id,subject,bodyPreview,receivedDateTime,sentDateTime,from,toRecipients,webLink";
+    private static final String SELECT = "id,subject,body,receivedDateTime,sentDateTime,from,toRecipients,webLink";
 
     private final GraphSourceClient graph;
     private final SourceItemFilter filter;
@@ -80,7 +80,7 @@ public class GraphOutlookSourceAdapter implements ISourceAdapter {
                 sourceType(),
                 occurredAt,
                 valueOr(GraphValues.string(message, "subject"), "(no subject)"),
-                valueOr(GraphValues.string(message, "bodyPreview"), ""),
+                messageBody(message),
                 valueOr(GraphValues.emailAddress(GraphValues.object(message, "from")), "Unknown sender"),
                 recipients,
                 attributes));
@@ -103,5 +103,12 @@ public class GraphOutlookSourceAdapter implements ISourceAdapter {
 
     private static String valueOr(String value, String fallback) {
         return value == null ? fallback : value;
+    }
+
+    private static String messageBody(Map<String, Object> message) {
+        var body = GraphValues.object(message, "body");
+        var content = valueOr(GraphValues.string(body, "content"), "");
+        return "html".equalsIgnoreCase(GraphValues.string(body, "contentType"))
+            ? GraphValues.htmlText(content) : content;
     }
 }

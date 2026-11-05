@@ -6,7 +6,6 @@ import dk.school.workoverviewagent.evidence.repository.IEvidenceRepository;
 import dk.school.workoverviewagent.model.EvidenceItem;
 import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.EvidenceStatus;
-import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.contract.SourceData;
 import dk.school.workoverviewagent.source.contract.SourceItem;
@@ -60,7 +59,7 @@ class EvidenceService implements IEvidenceService {
         return new EvidenceItem(
             "evidence-" + sourceItem.id(),
             sourceItem.title(),
-            evidenceSummary(sourceItem),
+            sourceItem.content() == null ? "" : sourceItem.content(),
             EvidenceStatus.SOURCE_EVIDENCE_CAPTURED,
             List.of(reference(ownerId, sourceItem)));
     }
@@ -77,13 +76,6 @@ class EvidenceService implements IEvidenceService {
             sourceItem.title(),
             excerpt(sourceItem.content()),
             1.0);
-    }
-
-    private String evidenceSummary(SourceItem sourceItem) {
-        if (sourceItem.sourceType() == SourceType.MEETING_NOTES) {
-            return sourceItem.content() == null ? "" : sourceItem.content();
-        }
-        return "Source evidence captured from " + sourceItem.sourceType() + ".";
     }
 
     private String excerpt(String content) {
