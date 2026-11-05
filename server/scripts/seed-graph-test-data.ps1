@@ -271,6 +271,31 @@ function Start-ChatMigration {
     throw "Restored chat $ChatId remained unavailable for message migration."
 }
 
+function Start-ChannelMigration {
+    param([string]$ChannelUri, [string]$CreationDateTime, [string]$PreviousMode)
+
+    $body = @{ conversationCreationDateTime = $CreationDateTime }
+    for ($attempt = 1; $attempt -le 5; $attempt++) {
+        try {
+            Invoke-Graph -Method POST -Uri "$ChannelUri/startMigration" -Body $body | Out-Null
+            return
+        }
+        catch {
+            $errorText = [string]$_
+            if ($errorText -notmatch 'HTTP (500|502|503|504)|HTTP request failed') { throw }
+            $delay = [int][Math]::Min(30, [Math]::Pow(2, $attempt))
+            Start-Sleep -Seconds $delay
+            $state = (Invoke-Graph -Method GET -Uri "$ChannelUri`?`$select=id,migrationMode").Body
+            if ($state.migrationMode -eq 'inProgress') { return }
+            if ([string]$state.migrationMode -ne $PreviousMode) {
+                throw "Cannot safely retry starting migration for ${ChannelUri}: Graph reports '$($state.migrationMode)'. $errorText"
+            }
+            if ($attempt -ge 5) { throw $errorText }
+            Write-Output "Graph could not start channel migration; retrying (attempt $($attempt + 1) of 5)."
+        }
+    }
+}
+
 function Complete-SeedMigration {
     param([string]$ThreadUri)
     for ($attempt = 1; $attempt -le 5; $attempt++) {
@@ -1030,7 +1055,7 @@ foreach ($group in $channelGroups) {
     $channelState = (Invoke-Graph -Method GET -Uri "$channelUri`?`$select=id,migrationMode").Body
     if ($channelState.migrationMode -ne 'inProgress') {
         $channelHistoryStart = Get-MigrationStartTime -ThreadUri $channelUri -RequestedStart $historyStart
-        Invoke-Graph -Method POST -Uri "$channelUri/startMigration" -Body @{ conversationCreationDateTime = $channelHistoryStart } | Out-Null
+        Start-ChannelMigration -ChannelUri $channelUri -CreationDateTime $channelHistoryStart -PreviousMode ([string]$channelState.migrationMode)
     }
     foreach ($item in ($group.Group | Sort-Object occurredAt)) {
         $itemHash = Get-RecordHash $item
