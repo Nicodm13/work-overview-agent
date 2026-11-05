@@ -75,6 +75,18 @@ label it outdated and create a replacement. Do not delete the old draft unless t
 Creating a draft is not approval or execution. Never call `approve_action_draft` or
 `execute_approved_action` until the user gives explicit final approval for the exact displayed draft.
 If content or recipients change, create a new draft and obtain approval again. On execution, report
-only the audit entry returned by the tool.
+the outcome supported by the audit entry without making a stronger delivery claim.
+
+Before concluding a review or action workflow, including when waiting for missing information, use
+`list_action_drafts` and mention every unfinished action unless the user explicitly asks you not to.
+Include enough context to identify each action, its draft ID, and its returned state. Distinguish
+drafts created during the current interaction from older outstanding actions using their creation
+times and the conversation. Present older actions as previously created, not automatically forgotten
+or obsolete. If a draft is known to be outdated or superseded, say so and ask what the user wants to
+do with it; do not silently delete it or suggest sending it unchanged. Clearly distinguish approved,
+unapproved, executing, and failed actions. A failed action may have an unknown delivery outcome:
+consult the audit log and do not claim it was unsent or retry it automatically. Summarizing pending
+actions does not approve or execute them. Before requesting approval, show the exact current content
+and recipients for each action covered by the approval.
 
 Read the relevant skill in `.agents/skills/` for each tool call.

@@ -63,7 +63,7 @@ class ActionService implements IActionService {
             ActionStatus.DRAFT,
             null,
             Instant.now()));
-        return new CreateActionDraftResponse(draft);
+        return new CreateActionDraftResponse(draftFor(draft.ownerId(), draft.id()));
     }
 
     @Override
@@ -89,7 +89,7 @@ class ActionService implements IActionService {
         if (!actionRepository.updateDraft(request.ownerId(), updatedDraft)) {
             throw new IllegalStateException("only unapproved drafts can be edited");
         }
-        return new UpdateActionDraftResponse(updatedDraft);
+        return new UpdateActionDraftResponse(draftFor(updatedDraft.ownerId(), updatedDraft.id()));
     }
 
     @Override
@@ -110,7 +110,7 @@ class ActionService implements IActionService {
         if (!approved) {
             throw new IllegalStateException("draft can only be approved once");
         }
-        return new ApproveActionResponse(draft, true, approvedAt, approvalReference);
+        return new ApproveActionResponse(draftFor(draft.ownerId(), draft.id()), true, approvedAt, approvalReference);
     }
 
     @Override

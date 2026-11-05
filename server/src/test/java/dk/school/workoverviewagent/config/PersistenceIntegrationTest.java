@@ -13,6 +13,7 @@ import dk.school.workoverviewagent.followup.api.IFollowUpService;
 import dk.school.workoverviewagent.followup.contract.AttachEvidenceToFollowUpRequest;
 import dk.school.workoverviewagent.followup.contract.CreateFollowUpItemRequest;
 import dk.school.workoverviewagent.model.ActionType;
+import dk.school.workoverviewagent.model.ActionStatus;
 import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.model.StatusSource;
@@ -48,6 +49,41 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Test
+    void listsUnfinishedDraftsWithTheirStatesForTheCorrectOwner() {
+        var owner = "draft-list-owner";
+        var otherOwner = "draft-list-other-owner";
+        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            owner, "Draft list", "", List.of()));
+        var otherItem = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            otherOwner, "Other draft", "", List.of()));
+
+        var expected = new java.util.LinkedHashMap<String, ActionStatus>();
+        for (var status : ActionStatus.values()) {
+            var draft = actionService.createDraft(new CreateActionDraftRequest(
+                owner, ActionType.EMAIL, item.id(), List.of("recipient@example.test"),
+                "Subject", "Body", null, null, null, List.of(), null)).draft();
+            jdbc.update("UPDATE ACTION_STATE SET STATUS = ? WHERE OWNER_ID = ? AND DRAFT_ID = ?",
+                status.name(), owner, draft.id());
+            if (status != ActionStatus.EXECUTED) {
+                expected.put(draft.id(), status);
+            }
+        }
+        actionService.createDraft(new CreateActionDraftRequest(
+            otherOwner, ActionType.EMAIL, otherItem.id(), List.of("recipient@example.test"),
+            "Other", "Body", null, null, null, List.of(), null));
+
+        var listed = actionService.listActiveActionDrafts(owner);
+        assertThat(listed).allSatisfy(entry -> {
+            assertThat(entry.createdAt()).isNotNull();
+            assertThat(entry.statusUpdatedAt()).isNotNull();
+            assertThat(actionService.getActionDraft(owner, entry.id())).isEqualTo(entry);
+        });
+        var actual = listed.stream()
+            .collect(java.util.stream.Collectors.toMap(entry -> entry.id(), entry -> entry.status()));
+        assertThat(actual).containsExactlyInAnyOrderEntriesOf(expected);
+    }
 
     @Test
     void persistsIndependentEvidenceAndFollowUpLinks() {
