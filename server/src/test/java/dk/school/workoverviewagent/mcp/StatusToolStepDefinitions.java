@@ -13,8 +13,6 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.time.Instant;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class StatusToolStepDefinitions {
@@ -61,7 +59,7 @@ public class StatusToolStepDefinitions {
                 "later-email-evidence",
                 SourceType.OUTLOOK,
                 "email-later-1",
-                Instant.parse("2099-01-01T08:30:00Z"),
+                statusUpdateResponse.updatedAt().plusSeconds(1),
                 "Maja Jensen",
                 "New question about the resolved item",
                 "Can you help with this again?",

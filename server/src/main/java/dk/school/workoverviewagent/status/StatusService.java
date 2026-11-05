@@ -75,7 +75,7 @@ class StatusService implements IStatusService {
                 .filter(status -> status.status() == WorkStatus.RESOLVED)
                 .stream()
                 .flatMap(status -> item.evidenceReferences().stream()
-                    .filter(reference -> wasCapturedAfterResolution(reference, status))
+                    .filter(reference -> occurredAfterResolution(reference, status))
                     .map(reference -> new NewEvidenceForResolvedItem(
                         item.id(),
                         item.title(),
@@ -133,7 +133,7 @@ class StatusService implements IStatusService {
             .reduce((first, second) -> second);
     }
 
-    private boolean wasCapturedAfterResolution(
+    private boolean occurredAfterResolution(
         EvidenceReference reference,
         WorkStatusRecord resolvedStatus) {
         return reference.timestamp() != null
