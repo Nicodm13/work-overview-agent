@@ -148,6 +148,7 @@ class ActionService implements IActionService {
             var auditEntry = new AuditLogEntry(
                 UUID.randomUUID().toString(),
                 request.ownerId(),
+                draft.id(),
                 draft.followUpItemId(),
                 draft.actionType().name(),
                 executedAt,
@@ -167,6 +168,7 @@ class ActionService implements IActionService {
         var auditEntry = new AuditLogEntry(
             UUID.randomUUID().toString(),
             request.ownerId(),
+            draft.id(),
             draft.followUpItemId(),
             draft.actionType().name(),
             executedAt,

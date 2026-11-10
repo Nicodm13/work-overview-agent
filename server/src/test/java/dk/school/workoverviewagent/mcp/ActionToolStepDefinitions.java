@@ -181,6 +181,7 @@ public class ActionToolStepDefinitions {
     public void actionAuditLogContainsExecutionEntry() {
         assertThat(auditLog).anySatisfy(entry -> {
             assertThat(entry.id()).isEqualTo(actionExecutionResponse.auditLogEntry().id());
+            assertThat(entry.draftId()).isEqualTo(actionDraftResponse.draft().id());
             assertThat(entry.deliveryStatus()).isEqualTo("SIMULATED");
         });
     }

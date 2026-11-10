@@ -10,6 +10,7 @@ import java.time.Instant;
 public record AuditLogEntry(
     String id,
     String ownerId,
+    String draftId,
     String followUpItemId,
     String actionType,
     Instant timestamp,
