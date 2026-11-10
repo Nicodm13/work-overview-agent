@@ -6,5 +6,6 @@ description: Record final approval for the exact displayed Work Overview action 
 # Approve action draft
 
 Use `approve_action_draft` only after explicit final user approval of the exact displayed draft.
-Use the draft ID and an approval reference that identifies that exact content. Any content or
-recipient change invalidates the approval boundary.
+Supply the draft ID and final approval. The tool returns an approval reference bound to the exact
+draft content; use that returned reference when executing. Any content or recipient change
+invalidates the approval boundary.

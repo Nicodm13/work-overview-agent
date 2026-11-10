@@ -6,7 +6,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -81,16 +80,6 @@ class EvidenceRepository implements IEvidenceRepository {
                 evidenceReferenceId)
             .stream()
             .findFirst();
-    }
-
-    @Override
-    public List<EvidenceReference> findByIds(
-        String ownerId,
-        List<String> evidenceReferenceIds) {
-        return evidenceReferenceIds.stream()
-            .map(id -> findById(ownerId, id))
-            .flatMap(Optional::stream)
-            .toList();
     }
 
     private EvidenceReference reference(ResultSet resultSet) throws SQLException {

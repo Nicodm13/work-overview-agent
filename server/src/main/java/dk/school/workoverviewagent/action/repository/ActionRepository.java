@@ -266,11 +266,6 @@ class ActionRepository implements IActionRepository {
         return true;
     }
 
-    @Override
-    public void appendAuditEntry(String ownerId, AuditLogEntry entry) {
-        insertAuditEntry(ownerId, entry);
-    }
-
     private void insertAuditEntry(String ownerId, AuditLogEntry entry) {
         jdbc.update(
             """
