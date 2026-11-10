@@ -10,6 +10,8 @@ Feature: Action MCP tools
     Then the action draft is approved
     When the execute_approved_action MCP tool executes the approved draft
     Then the action execution is audited as approved
+    When the get_action_audit_log MCP tool is called
+    Then the action audit log contains the execution entry
 
   Scenario: Meeting invitation drafts remain editable until approval
     When the action tool scenario creates a follow-up item with title "Clarify the integration approach"

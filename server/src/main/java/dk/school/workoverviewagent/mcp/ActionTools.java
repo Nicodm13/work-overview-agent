@@ -12,6 +12,7 @@ import dk.school.workoverviewagent.action.contract.UpdateActionDraftRequest;
 import dk.school.workoverviewagent.action.contract.UpdateActionDraftResponse;
 import dk.school.workoverviewagent.model.ActionDraft;
 import dk.school.workoverviewagent.model.ActionType;
+import dk.school.workoverviewagent.model.AuditLogEntry;
 import dk.school.workoverviewagent.user.IUserProvider;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
@@ -153,6 +154,17 @@ public class ActionTools {
             idempotentHint = true))
     public List<ActionDraft> listActionDrafts() {
         return actionService.listActiveActionDrafts(userProvider.getUserId());
+    }
+
+    @McpTool(
+        name = "get_action_audit_log",
+        description = "Return the signed-in user's action execution audit entries, including delivery outcomes. This tool cannot modify audit entries.",
+        annotations = @McpTool.McpAnnotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true))
+    public List<AuditLogEntry> getActionAuditLog() {
+        return actionService.auditLog(userProvider.getUserId());
     }
 
     @McpTool(

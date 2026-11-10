@@ -5,6 +5,7 @@ import dk.school.workoverviewagent.action.contract.CreateActionDraftResponse;
 import dk.school.workoverviewagent.action.contract.ExecuteApprovedActionResponse;
 import dk.school.workoverviewagent.action.contract.UpdateActionDraftResponse;
 import dk.school.workoverviewagent.model.ActionType;
+import dk.school.workoverviewagent.model.AuditLogEntry;
 import dk.school.workoverviewagent.model.FollowUpItem;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -26,6 +27,7 @@ public class ActionToolStepDefinitions {
     private ApproveActionResponse actionApprovalResponse;
     private ExecuteApprovedActionResponse actionExecutionResponse;
     private UpdateActionDraftResponse updatedActionDraftResponse;
+    private List<AuditLogEntry> auditLog;
     private Throwable failure;
     private Throwable unapprovedExecutionFailure;
 
@@ -168,5 +170,18 @@ public class ActionToolStepDefinitions {
             .isEqualTo(createdFollowUpItem.id());
         assertThat(actionExecutionResponse.auditLogEntry().approvalStatus()).isEqualTo("APPROVED");
         assertThat(actionExecutionResponse.auditLogEntry().deliveryStatus()).isEqualTo("SIMULATED");
+    }
+
+    @When("the get_action_audit_log MCP tool is called")
+    public void getActionAuditLog() {
+        auditLog = actionTools.getActionAuditLog();
+    }
+
+    @Then("the action audit log contains the execution entry")
+    public void actionAuditLogContainsExecutionEntry() {
+        assertThat(auditLog).anySatisfy(entry -> {
+            assertThat(entry.id()).isEqualTo(actionExecutionResponse.auditLogEntry().id());
+            assertThat(entry.deliveryStatus()).isEqualTo("SIMULATED");
+        });
     }
 }
