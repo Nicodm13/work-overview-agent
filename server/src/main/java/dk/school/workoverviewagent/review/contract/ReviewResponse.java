@@ -2,13 +2,10 @@ package dk.school.workoverviewagent.review.contract;
 
 import dk.school.workoverviewagent.source.contract.SourceCoverage;
 import dk.school.workoverviewagent.model.EvidenceItem;
-import java.time.Instant;
 import java.util.List;
 
 public record ReviewResponse(
-    String reviewId,
     ReviewRequest request,
-    Instant reviewedAt,
     List<EvidenceItem> items,
     List<String> limitations,
     SourceCoverage coverage) {
