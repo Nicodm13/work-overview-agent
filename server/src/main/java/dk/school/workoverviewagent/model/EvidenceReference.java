@@ -9,6 +9,5 @@ public record EvidenceReference(
     Instant timestamp,
     String author,
     String title,
-    String excerpt,
-    double confidence) {
+    String excerpt) {
 }

@@ -1,9 +1,0 @@
-package dk.school.workoverviewagent.model;
-
-public enum EvidenceStatus {
-    SOURCE_EVIDENCE_CAPTURED,
-    POSSIBLE_FOLLOW_UP_FOUND,
-    NO_SUBSEQUENT_STATUS_UPDATE_FOUND,
-    CONFLICTING_NEW_EVIDENCE_FOUND,
-    INSUFFICIENT_EVIDENCE
-}

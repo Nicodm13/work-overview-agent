@@ -156,7 +156,7 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
         evidenceRepository.save(owner, original);
         var changed = new EvidenceReference(
             original.id(), original.sourceType(), original.sourceId(), original.timestamp(),
-            original.author(), original.title(), "Other owner's excerpt", original.confidence());
+            original.author(), original.title(), "Other owner's excerpt");
 
         evidenceRepository.save(otherOwner, changed);
 
@@ -200,13 +200,13 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             """, owner, draftId);
         jdbc.update("""
             INSERT INTO AUDIT_LOG_ENTRY
-                (ID, OWNER_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, OCCURRED_AT,
+                (ID, OWNER_ID, DRAFT_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, OCCURRED_AT,
                  APPROVAL_STATUS, APPROVED_CONTENT_REFERENCE,
                  DELIVERY_STATUS, EXTERNAL_REFERENCE, FAILURE_DETAIL,
                  CREATED, CREATED_BY, CHANGED, CHANGED_BY, VERSION)
-            VALUES (?, ?, ?, 'EMAIL', CURRENT_TIMESTAMP, 'APPROVED', 'content', 'LEGACY_UNKNOWN', NULL, NULL,
+            VALUES (?, ?, ?, ?, 'EMAIL', CURRENT_TIMESTAMP, 'APPROVED', 'content', 'LEGACY_UNKNOWN', NULL, NULL,
                     CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, ?, 0)
-            """, "cross-owner-relationship-audit", owner, item.id(), owner, owner);
+            """, "cross-owner-relationship-audit", owner, draftId, item.id(), owner, owner);
 
         assertCrossOwnerUpdateRejected("FOLLOW_UP_EVIDENCE_REFERENCE", "FOLLOW_UP_ITEM_ID", item.id(), otherOwner);
         assertThatThrownBy(() -> jdbc.update("""
@@ -240,8 +240,7 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             original.timestamp(),
             original.author(),
             original.title(),
-            "Updated source excerpt.",
-            original.confidence());
+            "Updated source excerpt.");
 
         followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
             OWNER_ID,
@@ -279,8 +278,7 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             Instant.parse("2026-09-10T08:00:00Z"),
             "Maja Jensen",
             null,
-            "Invalid source evidence.",
-            1.0);
+            "Invalid source evidence.");
 
         assertThatThrownBy(() -> followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
             OWNER_ID,
@@ -358,6 +356,7 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
 
         assertThat(actionService.auditLog(OWNER_ID)).singleElement().satisfies(entry -> {
             assertThat(entry.followUpItemId()).isEqualTo(item.id());
+            assertThat(entry.draftId()).isEqualTo(draft.id());
             assertThat(entry.approvalStatus()).isEqualTo("APPROVED");
             assertThat(entry.deliveryStatus()).isEqualTo("SIMULATED");
         });
@@ -368,6 +367,26 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             draft.id())).isEqualTo("EXECUTED");
     }
 
+    @Test
+    void auditEntriesIdentifyEachDraftForTheSameFollowUp() {
+        var owner = "audit-draft-owner";
+        var item = followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
+            owner, "Shared follow-up", "", List.of()));
+        var draftIds = new java.util.ArrayList<String>();
+        for (var subject : List.of("First", "Second")) {
+            var draft = actionService.createDraft(new CreateActionDraftRequest(
+                owner, ActionType.EMAIL, item.id(), List.of("maja@example.test"), subject,
+                "Please provide an update.", null, null, null, List.of(), "")).draft();
+            var approval = actionService.approveDraft(new ApproveActionRequest(owner, draft.id(), true, null));
+            actionService.executeApprovedAction(new ExecuteApprovedActionRequest(owner, draft.id(), approval.approvalReference()));
+            draftIds.add(draft.id());
+        }
+
+        assertThat(actionService.auditLog(owner)).extracting(entry -> entry.draftId())
+            .containsExactlyInAnyOrderElementsOf(draftIds);
+        assertThat(actionService.auditLog("another-user")).isEmpty();
+    }
+
     private EvidenceReference evidenceReference(String id) {
         return new EvidenceReference(
             id,
@@ -376,7 +395,6 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             Instant.parse("2026-09-10T08:00:00Z"),
             "Maja Jensen",
             "Test environment clarification",
-            "Can you confirm whether the test environment is ready?",
-            1.0);
+            "Can you confirm whether the test environment is ready?");
     }
 }

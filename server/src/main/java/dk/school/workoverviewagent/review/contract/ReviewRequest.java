@@ -9,8 +9,7 @@ public record ReviewRequest(
     String ownerId,
     Instant startsAt,
     Instant endsAt,
-    List<SourceType> sources,
-    ReviewPurpose purpose) {
+    List<SourceType> sources) {
 
     public ReviewRequest {
         if (ownerId == null || ownerId.isBlank()) {

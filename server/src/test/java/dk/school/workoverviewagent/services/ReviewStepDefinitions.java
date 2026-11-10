@@ -1,7 +1,6 @@
 package dk.school.workoverviewagent.services;
 
 import dk.school.workoverviewagent.review.api.IReviewService;
-import dk.school.workoverviewagent.review.contract.ReviewPurpose;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -25,8 +24,7 @@ public class ReviewStepDefinitions {
             "user-1",
             mockEvidenceTimestamp,
             mockEvidenceTimestamp,
-            List.of(),
-            ReviewPurpose.DAILY_OVERVIEW));
+            List.of()));
     }
 
     @Then("the review contains the titles {string}")

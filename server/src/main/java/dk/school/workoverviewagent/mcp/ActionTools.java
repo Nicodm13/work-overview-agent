@@ -12,6 +12,7 @@ import dk.school.workoverviewagent.action.contract.UpdateActionDraftRequest;
 import dk.school.workoverviewagent.action.contract.UpdateActionDraftResponse;
 import dk.school.workoverviewagent.model.ActionDraft;
 import dk.school.workoverviewagent.model.ActionType;
+import dk.school.workoverviewagent.model.AuditLogEntry;
 import dk.school.workoverviewagent.user.IUserProvider;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
@@ -33,7 +34,7 @@ public class ActionTools {
 
     @McpTool(
         name = "draft_follow_up_action",
-        description = "Prepare and store an editable action draft for a finding after assessing the source evidence and who is responsible. Draft appropriate user actions proactively without waiting for the user to ask. A participant is not necessarily the person responsible for the next step: check who was addressed or agreed to act. If someone else is responsible, do not make the signed-in user take over. When the user is waiting on that clearly identified person and an update would be useful, draft a courteous message asking for an update, without assuming the work is overdue or incomplete. If responsibility is unclear, say so and suggest checking with an evidence-supported person when useful. Match the channel to the source: EMAIL for an email-based request, TEAMS_MESSAGE for a Teams-based request; for mixed sources use the latest direct request. Draft a MEETING_INVITATION only when evidence supports that the user should coordinate it or the user asks to arrange one. Resolve evidence-supported participants with find_contacts and check availability with find_meeting_times before drafting. Do not invent recipients. Include source context in the draft. Preparing a draft never sends or schedules anything and is not user approval. Meeting attendees receive an invitation only after explicit approved execution.",
+        description = "Prepare and store an editable email, Teams message, or meeting invitation draft for a tracked follow-up item. Creating a draft does not send or schedule it; execution requires explicit final approval.",
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
             destructiveHint = false,
@@ -75,7 +76,7 @@ public class ActionTools {
 
     @McpTool(
         name = "update_action_draft",
-        description = "Replace the editable content of an unapproved action draft. Updating a draft does not approve or send it. Before concluding an action workflow, use list_action_drafts and mention all remaining active drafts, including drafts outside the one just updated. Identify outdated or superseded drafts when the conversation provides that context; do not delete or execute them without authorization.",
+        description = "Replace the editable content of an unapproved action draft. Updating a draft does not approve or execute it.",
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
             destructiveHint = false,
@@ -114,7 +115,7 @@ public class ActionTools {
 
     @McpTool(
         name = "approve_action_draft",
-        description = "Record final user approval for the exact editable draft content before execution. Call only after the user has seen the current recipients and content and explicitly approved them. Returns a server-generated reference bound to that exact draft snapshot. Before concluding an action workflow, use list_action_drafts and mention all remaining active drafts; do not imply that approving one draft approves or executes any others.",
+        description = "Record explicit final user approval for the exact draft after the user has seen its current recipients and content. Returns an approval reference bound to that draft snapshot.",
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
             destructiveHint = false,
@@ -146,13 +147,24 @@ public class ActionTools {
 
     @McpTool(
         name = "list_action_drafts",
-        description = "List the user's unfinished actions with their current state (DRAFT, APPROVED, EXECUTING, or FAILED), creation time, and state-change time. Executed actions remain available through audit storage but are excluded. Use this before concluding a review or action workflow and mention all unfinished actions with enough context to identify them and their state. Distinguish actions created in the current interaction from older pending actions; do not assume old actions are obsolete. Identify outdated or superseded drafts when known, and ask the user what to do with them. FAILED can include an unknown delivery outcome: consult the audit log and do not claim it was not sent or retry automatically. Do not delete, approve, or execute drafts without the necessary user authorization.",
+        description = "List the user's unfinished actions with their state, creation time, and state-change time. Executed actions are excluded. A failed action may have an unknown delivery outcome; consult the audit log before retrying.",
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = true,
             destructiveHint = false,
             idempotentHint = true))
     public List<ActionDraft> listActionDrafts() {
         return actionService.listActiveActionDrafts(userProvider.getUserId());
+    }
+
+    @McpTool(
+        name = "get_action_audit_log",
+        description = "Return the signed-in user's action execution audit entries, including delivery outcomes. This tool cannot modify audit entries.",
+        annotations = @McpTool.McpAnnotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true))
+    public List<AuditLogEntry> getActionAuditLog() {
+        return actionService.auditLog(userProvider.getUserId());
     }
 
     @McpTool(
@@ -173,7 +185,7 @@ public class ActionTools {
 
     @McpTool(
         name = "execute_approved_action",
-        description = "Deliver only a previously approved, unchanged draft through the configured source provider and record the outcome. In mock mode this simulates delivery; in Graph mode it sends a Teams chat message or email, or creates a calendar event and invites its attendees. Outcomes distinguish Graph acceptance, simulation, failure, and unknown network results. After reporting the outcome and before concluding the workflow, call list_action_drafts and mention all remaining active drafts; do not imply that executing one draft executed any others. Flag outdated or superseded drafts when known without deleting them automatically.",
+        description = "Execute a previously approved, unchanged draft and record its outcome. Mock mode simulates delivery; Graph mode sends a Teams message or email, or creates a meeting invitation. Outcomes distinguish Graph acceptance, simulation, failure, and unknown delivery.",
         generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,

@@ -2,7 +2,6 @@ package dk.school.workoverviewagent.mcp;
 
 import dk.school.workoverviewagent.review.contract.ReviewResponse;
 import dk.school.workoverviewagent.model.SourceType;
-import dk.school.workoverviewagent.review.contract.ReviewPurpose;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,16 +20,15 @@ public class ReviewToolStepDefinitions {
 
     @When("the get_review MCP tool is called for the selected mock evidence")
     public void getReview() {
-        response = reviewTools.getReview(mockEvidenceTimestamp.toString(), mockEvidenceTimestamp.toString(), null, null);
+        response = reviewTools.getReview(mockEvidenceTimestamp.toString(), mockEvidenceTimestamp.toString(), null);
     }
 
-    @When("the get_review MCP tool is called for source type {string} with purpose {string}")
-    public void getReviewWithSelectedSourceType(String sourceType, String reviewPurpose) {
+    @When("the get_review MCP tool is called for source type {string}")
+    public void getReviewWithSelectedSourceType(String sourceType) {
         response = reviewTools.getReview(
             mockEvidenceTimestamp.toString(),
             mockEvidenceTimestamp.toString(),
-            java.util.List.of(SourceType.valueOf(sourceType)),
-            ReviewPurpose.valueOf(reviewPurpose));
+            java.util.List.of(SourceType.valueOf(sourceType)));
     }
 
     @Then("the MCP response contains {int} review items")
@@ -43,16 +41,14 @@ public class ReviewToolStepDefinitions {
         assertThat(response.items()).hasSize(count);
     }
 
-    @Then("the MCP response uses daily overview purpose")
-    public void responseUsesDailyOverview() {
-        assertThat(response.request().purpose().name()).isEqualTo("DAILY_OVERVIEW");
+    @Then("the MCP response uses all sources")
+    public void responseUsesAllSources() {
         assertThat(response.request().sources()).isEmpty();
     }
 
-    @Then("the MCP response uses source type {string} and purpose {string}")
-    public void responseUsesSelectedSourceTypeAndPurpose(String sourceType, String reviewPurpose) {
+    @Then("the MCP response uses source type {string}")
+    public void responseUsesSelectedSourceType(String sourceType) {
         assertThat(response.request().sources()).containsExactly(SourceType.valueOf(sourceType));
-        assertThat(response.request().purpose()).isEqualTo(ReviewPurpose.valueOf(reviewPurpose));
         assertThat(response.items()).allSatisfy(item ->
             assertThat(item.evidenceReferences()).allSatisfy(reference ->
                 assertThat(reference.sourceType()).isEqualTo(SourceType.valueOf(sourceType))));

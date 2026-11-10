@@ -9,10 +9,8 @@ import dk.school.workoverviewagent.source.contract.SourceCoverage;
 import dk.school.workoverviewagent.source.contract.SourceRequest;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 
 @Service
 public class ReviewService implements IReviewService {
@@ -39,9 +37,7 @@ public class ReviewService implements IReviewService {
         var evidenceItems = evidenceService.captureEvidence(request, sourceData);
 
         return new ReviewResponse(
-            UUID.randomUUID().toString(),
             request,
-            Instant.now(),
             evidenceItems,
             sourceData == null ? List.of("No source data was returned; review is unavailable.") : sourceData.limitations(),
             sourceData == null ? SourceCoverage.FAILED : sourceData.coverage());

@@ -305,6 +305,26 @@ function Complete-SeedMigration {
         }
         catch {
             $errorText = [string]$_
+            if ($errorText -match 'HTTP 400' -and $errorText -match 'has already completed migration') {
+                # Graph can temporarily return inconsistent migration states after completion.
+                # Do not issue another completion request or assume the import succeeded.
+                $completedReads = 0
+                for ($check = 1; $check -le 8; $check++) {
+                    $state = (Invoke-Graph -Method GET -Uri "$ThreadUri`?`$select=id,migrationMode").Body
+                    if ($state.migrationMode -eq 'completed') {
+                        $completedReads++
+                        if ($completedReads -ge 2) { return }
+                    }
+                    elseif ($state.migrationMode -eq 'inProgress') {
+                        $completedReads = 0
+                    }
+                    else {
+                        throw "Cannot confirm migration completion for ${ThreadUri}: Graph reports '$($state.migrationMode)'. $errorText"
+                    }
+                    if ($check -lt 8) { Start-Sleep -Seconds 2 }
+                }
+                throw "Cannot confirm migration completion for ${ThreadUri}: Graph reported inconsistent or in-progress states after saying migration was already completed. $errorText"
+            }
             if ($errorText -notmatch 'HTTP (429|500|502|503|504)|HTTP request failed' -or $attempt -ge 5) { throw }
             $state = (Invoke-Graph -Method GET -Uri "$ThreadUri`?`$select=id,migrationMode").Body
             if ($state.migrationMode -eq 'completed') { return }

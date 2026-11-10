@@ -53,8 +53,7 @@ public class FollowUpToolStepDefinitions {
                 Instant.parse("2026-09-04T08:20:00Z"),
                 "Maja Jensen",
                 "Test environment clarification",
-                "Can you confirm whether the test environment is ready for use?",
-                1.0);
+                "Can you confirm whether the test environment is ready for use?");
         evidenceRepository.save(createdFollowUpItem.ownerId(), reference);
         followUpItemWithEvidence = followUpTools.attachEvidenceToFollowUp(
             createdFollowUpItem.id(), reference.id());

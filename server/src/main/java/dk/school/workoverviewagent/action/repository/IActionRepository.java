@@ -38,7 +38,5 @@ public interface IActionRepository {
 
     boolean failExecution(String ownerId, String draftId, AuditLogEntry entry);
 
-    void appendAuditEntry(String ownerId, AuditLogEntry entry);
-
     List<AuditLogEntry> findAuditEntries(String ownerId);
 }

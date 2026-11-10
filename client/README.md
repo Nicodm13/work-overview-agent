@@ -55,4 +55,4 @@ secret stays in `server/.env`.
 
 - `AGENTS.md` contains the client-wide operating instructions.
 - `.agents/skills/` contains tool-specific Codex skills.
-- `config/` contains client connection configuration.
+- `install.ps1` configures the client connection.

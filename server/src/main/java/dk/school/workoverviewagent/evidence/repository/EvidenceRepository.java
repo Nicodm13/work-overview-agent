@@ -6,7 +6,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -29,9 +28,9 @@ class EvidenceRepository implements IEvidenceRepository {
             """
                 INSERT INTO EVIDENCE_REFERENCE
                     (ID, OWNER_ID, SOURCE_TYPE, SOURCE_ID, OCCURRED_AT, AUTHOR,
-                     TITLE, EXCERPT, CONFIDENCE, CREATED, CREATED_BY, CHANGED,
+                     TITLE, EXCERPT, CREATED, CREATED_BY, CHANGED,
                      CHANGED_BY, VERSION)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?,
                         CURRENT_TIMESTAMP, ?, 0)
                 ON CONFLICT (ID) DO UPDATE
                 SET SOURCE_TYPE = EXCLUDED.SOURCE_TYPE,
@@ -40,7 +39,6 @@ class EvidenceRepository implements IEvidenceRepository {
                     AUTHOR = EXCLUDED.AUTHOR,
                     TITLE = EXCLUDED.TITLE,
                     EXCERPT = EXCLUDED.EXCERPT,
-                    CONFIDENCE = EXCLUDED.CONFIDENCE,
                     CHANGED = CURRENT_TIMESTAMP,
                     CHANGED_BY = EXCLUDED.CHANGED_BY,
                     VERSION = EVIDENCE_REFERENCE.VERSION + 1
@@ -50,8 +48,7 @@ class EvidenceRepository implements IEvidenceRepository {
                     OR EVIDENCE_REFERENCE.OCCURRED_AT IS DISTINCT FROM EXCLUDED.OCCURRED_AT
                     OR EVIDENCE_REFERENCE.AUTHOR IS DISTINCT FROM EXCLUDED.AUTHOR
                     OR EVIDENCE_REFERENCE.TITLE IS DISTINCT FROM EXCLUDED.TITLE
-                    OR EVIDENCE_REFERENCE.EXCERPT IS DISTINCT FROM EXCLUDED.EXCERPT
-                    OR EVIDENCE_REFERENCE.CONFIDENCE IS DISTINCT FROM EXCLUDED.CONFIDENCE)
+                    OR EVIDENCE_REFERENCE.EXCERPT IS DISTINCT FROM EXCLUDED.EXCERPT)
                 """,
             reference.id(),
             ownerId,
@@ -61,7 +58,6 @@ class EvidenceRepository implements IEvidenceRepository {
             reference.author(),
             reference.title(),
             reference.excerpt(),
-            reference.confidence(),
             ownerId,
             ownerId);
 
@@ -75,7 +71,7 @@ class EvidenceRepository implements IEvidenceRepository {
         return jdbc.query(
                 """
                     SELECT ID, SOURCE_TYPE, SOURCE_ID, OCCURRED_AT, AUTHOR,
-                           TITLE, EXCERPT, CONFIDENCE
+                           TITLE, EXCERPT
                     FROM EVIDENCE_REFERENCE
                     WHERE OWNER_ID = ? AND ID = ?
                     """,
@@ -86,16 +82,6 @@ class EvidenceRepository implements IEvidenceRepository {
             .findFirst();
     }
 
-    @Override
-    public List<EvidenceReference> findByIds(
-        String ownerId,
-        List<String> evidenceReferenceIds) {
-        return evidenceReferenceIds.stream()
-            .map(id -> findById(ownerId, id))
-            .flatMap(Optional::stream)
-            .toList();
-    }
-
     private EvidenceReference reference(ResultSet resultSet) throws SQLException {
         return new EvidenceReference(
             resultSet.getString("ID"),
@@ -104,8 +90,7 @@ class EvidenceRepository implements IEvidenceRepository {
             resultSet.getTimestamp("OCCURRED_AT").toInstant(),
             resultSet.getString("AUTHOR"),
             resultSet.getString("TITLE"),
-            resultSet.getString("EXCERPT"),
-            resultSet.getDouble("CONFIDENCE"));
+            resultSet.getString("EXCERPT"));
     }
 
     private void saveVersion(String ownerId, EvidenceReference reference) {
@@ -117,9 +102,9 @@ class EvidenceRepository implements IEvidenceRepository {
             """
                 INSERT INTO EVIDENCE_REFERENCE_VERSION
                     (ID, EVIDENCE_REFERENCE_ID, VERSION, OWNER_ID, SOURCE_TYPE,
-                     SOURCE_ID, OCCURRED_AT, AUTHOR, TITLE, EXCERPT, CONFIDENCE,
+                     SOURCE_ID, OCCURRED_AT, AUTHOR, TITLE, EXCERPT,
                      RECORDED_AT, CREATED, CREATED_BY, CHANGED, CHANGED_BY)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,
                         CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, ?)
                 """,
             versionId(reference.id(), version),
@@ -132,7 +117,6 @@ class EvidenceRepository implements IEvidenceRepository {
             reference.author(),
             reference.title(),
             reference.excerpt(),
-            reference.confidence(),
             ownerId,
             ownerId);
     }

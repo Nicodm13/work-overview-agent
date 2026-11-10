@@ -62,8 +62,7 @@ public class StatusToolStepDefinitions {
                 statusUpdateResponse.updatedAt().plusSeconds(1),
                 "Maja Jensen",
                 "New question about the resolved item",
-                "Can you help with this again?",
-                1.0);
+                "Can you help with this again?");
         evidenceRepository.save(createdFollowUpItem.ownerId(), reference);
         followUpTools.attachEvidenceToFollowUp(createdFollowUpItem.id(), reference.id());
     }

@@ -266,24 +266,20 @@ class ActionRepository implements IActionRepository {
         return true;
     }
 
-    @Override
-    public void appendAuditEntry(String ownerId, AuditLogEntry entry) {
-        insertAuditEntry(ownerId, entry);
-    }
-
     private void insertAuditEntry(String ownerId, AuditLogEntry entry) {
         jdbc.update(
             """
                 INSERT INTO AUDIT_LOG_ENTRY
-                    (ID, OWNER_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, OCCURRED_AT,
+                    (ID, OWNER_ID, DRAFT_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, OCCURRED_AT,
                      APPROVAL_STATUS, APPROVED_CONTENT_REFERENCE, DELIVERY_STATUS,
                      EXTERNAL_REFERENCE, FAILURE_DETAIL, CREATED,
                      CREATED_BY, CHANGED, CHANGED_BY, VERSION)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?,
                         CURRENT_TIMESTAMP, ?, 0)
                 """,
             entry.id(),
             ownerId,
+            entry.draftId(),
             entry.followUpItemId(),
             entry.actionType(),
             Timestamp.from(entry.timestamp()),
@@ -300,7 +296,7 @@ class ActionRepository implements IActionRepository {
     public List<AuditLogEntry> findAuditEntries(String ownerId) {
         return jdbc.query(
             """
-                SELECT ID, OWNER_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, OCCURRED_AT,
+                SELECT ID, OWNER_ID, DRAFT_ID, FOLLOW_UP_ITEM_ID, ACTION_TYPE, OCCURRED_AT,
                        APPROVAL_STATUS, APPROVED_CONTENT_REFERENCE, DELIVERY_STATUS,
                        EXTERNAL_REFERENCE, FAILURE_DETAIL
                 FROM AUDIT_LOG_ENTRY
@@ -334,6 +330,7 @@ class ActionRepository implements IActionRepository {
         return new AuditLogEntry(
             resultSet.getString("ID"),
             resultSet.getString("OWNER_ID"),
+            resultSet.getString("DRAFT_ID"),
             resultSet.getString("FOLLOW_UP_ITEM_ID"),
             resultSet.getString("ACTION_TYPE"),
             resultSet.getTimestamp("OCCURRED_AT").toInstant(),

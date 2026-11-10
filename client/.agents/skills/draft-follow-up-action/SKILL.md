@@ -11,5 +11,6 @@ final approval; drafting does not authorise sending. When the user has confirmed
 earlier unanswered request, make the draft communicate that outcome rather than merely asking for
 another status update. Introduce it as a suggested action, including channel, recipients, complete
 content, draft ID, and the instruction that explicit final approval is still required. Place the
-complete draft directly below its relevant overview item using a `Suggested next action` heading,
-with separate Type, Recipient(s), Subject, and Body fields.
+complete draft directly below its relevant overview item under an `Email draft`, `Teams draft`, or
+`Meeting invitation draft` heading. Include a concise `Next action:` line for the finding without
+repeating the draft content.

@@ -2,9 +2,7 @@ package dk.school.workoverviewagent.review;
 
 import dk.school.workoverviewagent.evidence.api.IEvidenceService;
 import dk.school.workoverviewagent.model.EvidenceItem;
-import dk.school.workoverviewagent.model.EvidenceStatus;
 import dk.school.workoverviewagent.model.SourceType;
-import dk.school.workoverviewagent.review.contract.ReviewPurpose;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.api.ISourceAdapterLayer;
 import dk.school.workoverviewagent.source.contract.SourceCoverage;
@@ -46,7 +44,7 @@ class ReviewServiceTest {
             SourceCoverage.PARTIAL));
         when(evidenceService.captureEvidence(any(), any())).thenReturn(List.of(new EvidenceItem(
             "evidence-1", "Mail subject", "Captured from Outlook",
-            EvidenceStatus.SOURCE_EVIDENCE_CAPTURED, List.of())));
+            List.of())));
 
         var response = new ReviewService(sourceAdapterLayer, evidenceService).reviewWorkContext(request());
 
@@ -57,7 +55,6 @@ class ReviewServiceTest {
 
     private ReviewRequest request() {
         return new ReviewRequest("owner-1", Instant.parse("2026-09-01T00:00:00Z"),
-            Instant.parse("2026-09-02T00:00:00Z"), List.of(SourceType.OUTLOOK),
-            ReviewPurpose.DAILY_OVERVIEW);
+            Instant.parse("2026-09-02T00:00:00Z"), List.of(SourceType.OUTLOOK));
     }
 }

@@ -54,7 +54,6 @@ public class FollowUpStepDefinitions {
             Instant.parse("2026-09-04T08:20:00Z"),
             "Maja Jensen",
             "Test environment clarification",
-            "Selected source evidence.",
-            1.0);
+            "Selected source evidence.");
     }
 }

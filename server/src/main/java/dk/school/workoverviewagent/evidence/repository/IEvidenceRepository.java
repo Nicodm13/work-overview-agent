@@ -2,7 +2,6 @@ package dk.school.workoverviewagent.evidence.repository;
 
 import dk.school.workoverviewagent.model.EvidenceReference;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -13,5 +12,4 @@ public interface IEvidenceRepository {
 
     Optional<EvidenceReference> findById(String ownerId, String evidenceReferenceId);
 
-    List<EvidenceReference> findByIds(String ownerId, List<String> evidenceReferenceIds);
 }

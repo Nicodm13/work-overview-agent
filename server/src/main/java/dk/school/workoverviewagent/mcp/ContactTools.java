@@ -19,7 +19,7 @@ public class ContactTools {
 
     @McpTool(
         name = "find_contacts",
-        description = "Search the configured contact directory and return display name, email address, user principal name, and Graph ID for resolving evidence-supported email or Teams recipients and meeting attendees. Graph mode searches the current tenant; mock mode searches mock-data/users.csv. Supports partial names and email addresses. Use it proactively during review when a draft or meeting needs recipients. Results can be ambiguous; do not guess when multiple people match, and do not add people who are not supported by the evidence.",
+        description = "Search the configured contact directory by partial name or email address. Returns display names, email addresses, user principal names, and Graph IDs. Graph mode searches the current tenant; mock mode searches mock contacts. Results may be ambiguous.",
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = true,
             destructiveHint = false,

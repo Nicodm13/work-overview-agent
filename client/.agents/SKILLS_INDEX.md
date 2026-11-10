@@ -17,5 +17,6 @@ the call boundary and presentation requirements for each MCP tool.
 | approve-action-draft | `approve_action_draft` |
 | inspect-action-draft | `get_action_draft` |
 | list-action-drafts | `list_action_drafts` |
+| inspect-action-audit | `get_action_audit_log` |
 | discard-action-draft | `delete_action_draft` |
 | execute-approved-action | `execute_approved_action` |

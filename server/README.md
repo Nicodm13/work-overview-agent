@@ -256,7 +256,7 @@ target `jdbc:postgresql://localhost:5432/work_overview_agent` with the user and 
 `work_overview_agent`. Flyway creates the schema on application startup.
 
 `EvidenceService` persists independent, minimized `EvidenceReference` records: source type and id, timestamp, author,
-title, excerpt, and confidence. It does not store complete channel histories. `FollowUpService` creates a stable
+title and excerpt. It does not store complete channel histories. `FollowUpService` creates a stable
 UUID-backed `FollowUpItem` and records the explicitly supplied links in `FOLLOW_UP_EVIDENCE_REFERENCE`. It does not
 decide whether source records are related. One evidence reference can therefore support multiple follow-up items, and a
 follow-up item can link evidence from several channels.

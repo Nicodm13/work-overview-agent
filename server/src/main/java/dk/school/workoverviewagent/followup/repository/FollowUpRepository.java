@@ -100,7 +100,7 @@ class FollowUpRepository implements IFollowUpRepository {
         return jdbc.query(
             """
                 SELECT E.ID, E.SOURCE_TYPE, E.SOURCE_ID, E.OCCURRED_AT,
-                       E.AUTHOR, E.TITLE, E.EXCERPT, E.CONFIDENCE
+                       E.AUTHOR, E.TITLE, E.EXCERPT
                 FROM EVIDENCE_REFERENCE E
                 JOIN FOLLOW_UP_EVIDENCE_REFERENCE L
                     ON L.EVIDENCE_REFERENCE_ID = E.ID
@@ -122,7 +122,6 @@ class FollowUpRepository implements IFollowUpRepository {
             resultSet.getTimestamp("OCCURRED_AT").toInstant(),
             resultSet.getString("AUTHOR"),
             resultSet.getString("TITLE"),
-            resultSet.getString("EXCERPT"),
-            resultSet.getDouble("CONFIDENCE"));
+            resultSet.getString("EXCERPT"));
     }
 }

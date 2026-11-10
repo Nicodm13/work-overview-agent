@@ -25,7 +25,7 @@ public class EvidenceToolStepDefinitions {
     @When("the evidence tool scenario requests a Teams-only review of the selected mock evidence")
     public void getReview() {
         reviewResponse = reviewTools.getReview(mockEvidenceTimestamp.toString(), mockEvidenceTimestamp.toString(),
-            java.util.List.of(SourceType.TEAMS), null);
+            java.util.List.of(SourceType.TEAMS));
     }
 
     @When("the get_item_evidence MCP tool is called for the first review item")
