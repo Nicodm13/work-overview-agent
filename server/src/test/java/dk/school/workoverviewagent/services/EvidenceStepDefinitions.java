@@ -3,7 +3,6 @@ package dk.school.workoverviewagent.services;
 import dk.school.workoverviewagent.evidence.api.IEvidenceService;
 import dk.school.workoverviewagent.model.EvidenceStatus;
 import dk.school.workoverviewagent.model.SourceType;
-import dk.school.workoverviewagent.review.contract.ReviewPurpose;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.contract.SourceData;
 import dk.school.workoverviewagent.source.contract.SourceCoverage;
@@ -38,8 +37,7 @@ public class EvidenceStepDefinitions {
             "user-1",
             Instant.parse("2026-09-04T00:00:00Z"),
             Instant.parse("2026-09-04T23:59:59Z"),
-            List.of(),
-            ReviewPurpose.DAILY_OVERVIEW);
+            List.of());
         evidenceItems = evidenceService.captureEvidence(request,
             new SourceData(List.of(item), List.of(), SourceCoverage.COMPLETE));
     }

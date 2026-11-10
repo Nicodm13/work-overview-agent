@@ -2,7 +2,6 @@ package dk.school.workoverviewagent.mcp;
 
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.review.api.IReviewService;
-import dk.school.workoverviewagent.review.contract.ReviewPurpose;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.review.contract.ReviewResponse;
 import dk.school.workoverviewagent.user.IUserProvider;
@@ -38,17 +37,12 @@ public class ReviewTools {
         @McpToolParam(
             description = "Optional source types to review. Omit or provide an empty list to review all sources.",
             required = false)
-        List<SourceType> sourceTypes,
-        @McpToolParam(
-            description = "Optional review purpose. Defaults to DAILY_OVERVIEW when omitted.",
-            required = false)
-        ReviewPurpose reviewPurpose) {
+        List<SourceType> sourceTypes) {
         var request = new ReviewRequest(
             userProvider.getUserId(),
             Instant.parse(startsAt),
             Instant.parse(endsAt),
-            sourceTypes == null ? List.of() : sourceTypes,
-            reviewPurpose == null ? ReviewPurpose.DAILY_OVERVIEW : reviewPurpose);
+            sourceTypes == null ? List.of() : sourceTypes);
         return reviewService.reviewWorkContext(request);
     }
 }

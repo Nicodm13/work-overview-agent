@@ -3,7 +3,6 @@ package dk.school.workoverviewagent.evidence;
 import dk.school.workoverviewagent.evidence.repository.IEvidenceRepository;
 import dk.school.workoverviewagent.model.EvidenceReference;
 import dk.school.workoverviewagent.model.SourceType;
-import dk.school.workoverviewagent.review.contract.ReviewPurpose;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.contract.SourceCoverage;
 import dk.school.workoverviewagent.source.contract.SourceData;
@@ -30,8 +29,7 @@ class EvidenceServiceMeetingTest {
             Instant.parse("2026-10-15T12:00:00Z"), "Minutes.docx", text,
             "cortex@example.com", List.of(), Map.of("origin", "OUTLOOK"));
         var request = new ReviewRequest("tenant:user", Instant.parse("2026-10-15T00:00:00Z"),
-            Instant.parse("2026-10-16T00:00:00Z"), List.of(SourceType.MEETING_NOTES),
-            ReviewPurpose.DAILY_OVERVIEW);
+            Instant.parse("2026-10-16T00:00:00Z"), List.of(SourceType.MEETING_NOTES));
 
         var result = new EvidenceService(repository).captureEvidence(request,
             new SourceData(List.of(source), List.of(), SourceCoverage.COMPLETE));
@@ -53,7 +51,7 @@ class EvidenceServiceMeetingTest {
                 "sender@example.com", List.of(), Map.of()))
             .toList();
         var request = new ReviewRequest("tenant:user", timestamp.minusSeconds(1), timestamp.plusSeconds(1),
-            List.of(), ReviewPurpose.DAILY_OVERVIEW);
+            List.of());
 
         var result = new EvidenceService(repository).captureEvidence(request,
             new SourceData(sources, List.of(), SourceCoverage.COMPLETE));
