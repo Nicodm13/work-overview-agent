@@ -6,7 +6,6 @@ public record EvidenceItem(
     String id,
     String title,
     String summary,
-    EvidenceStatus evidenceStatus,
     List<EvidenceReference> evidenceReferences) {
 
     public EvidenceItem {

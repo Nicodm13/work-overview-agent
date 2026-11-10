@@ -156,7 +156,7 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
         evidenceRepository.save(owner, original);
         var changed = new EvidenceReference(
             original.id(), original.sourceType(), original.sourceId(), original.timestamp(),
-            original.author(), original.title(), "Other owner's excerpt", original.confidence());
+            original.author(), original.title(), "Other owner's excerpt");
 
         evidenceRepository.save(otherOwner, changed);
 
@@ -240,8 +240,7 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             original.timestamp(),
             original.author(),
             original.title(),
-            "Updated source excerpt.",
-            original.confidence());
+            "Updated source excerpt.");
 
         followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
             OWNER_ID,
@@ -279,8 +278,7 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             Instant.parse("2026-09-10T08:00:00Z"),
             "Maja Jensen",
             null,
-            "Invalid source evidence.",
-            1.0);
+            "Invalid source evidence.");
 
         assertThatThrownBy(() -> followUpService.createFollowUpItem(new CreateFollowUpItemRequest(
             OWNER_ID,
@@ -376,7 +374,6 @@ class PersistenceIntegrationTest extends CucumberSpringConfiguration {
             Instant.parse("2026-09-10T08:00:00Z"),
             "Maja Jensen",
             "Test environment clarification",
-            "Can you confirm whether the test environment is ready?",
-            1.0);
+            "Can you confirm whether the test environment is ready?");
     }
 }

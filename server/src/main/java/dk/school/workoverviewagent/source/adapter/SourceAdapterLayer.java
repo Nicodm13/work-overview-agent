@@ -50,13 +50,9 @@ class SourceAdapterLayer implements ISourceAdapterLayer {
         for (var sourceType : selectedSourceTypes) {
             var adapter = adapters.stream()
                 .filter(candidate -> candidate.sourceType() == sourceType)
-                .findFirst();
-            if (adapter.isEmpty()) {
-                limitations.add(sourceType + " source is not configured; its results are unavailable.");
-                continue;
-            }
+                .findFirst().orElseThrow();
             try {
-                var result = Objects.requireNonNull(adapter.get().load(request), "source result must not be null");
+                var result = Objects.requireNonNull(adapter.load(request), "source result must not be null");
                 loadedItems.addAll(result.items());
                 limitations.addAll(result.limitations());
                 successfulSources++;

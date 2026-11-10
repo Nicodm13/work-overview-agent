@@ -2,7 +2,6 @@ package dk.school.workoverviewagent.review;
 
 import dk.school.workoverviewagent.evidence.api.IEvidenceService;
 import dk.school.workoverviewagent.model.EvidenceItem;
-import dk.school.workoverviewagent.model.EvidenceStatus;
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.api.ISourceAdapterLayer;
@@ -45,7 +44,7 @@ class ReviewServiceTest {
             SourceCoverage.PARTIAL));
         when(evidenceService.captureEvidence(any(), any())).thenReturn(List.of(new EvidenceItem(
             "evidence-1", "Mail subject", "Captured from Outlook",
-            EvidenceStatus.SOURCE_EVIDENCE_CAPTURED, List.of())));
+            List.of())));
 
         var response = new ReviewService(sourceAdapterLayer, evidenceService).reviewWorkContext(request());
 

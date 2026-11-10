@@ -1,7 +1,6 @@
 package dk.school.workoverviewagent.services;
 
 import dk.school.workoverviewagent.evidence.api.IEvidenceService;
-import dk.school.workoverviewagent.model.EvidenceStatus;
 import dk.school.workoverviewagent.model.SourceType;
 import dk.school.workoverviewagent.review.contract.ReviewRequest;
 import dk.school.workoverviewagent.source.contract.SourceData;
@@ -42,12 +41,11 @@ public class EvidenceStepDefinitions {
             new SourceData(List.of(item), List.of(), SourceCoverage.COMPLETE));
     }
 
-    @Then("the evidence is captured with source type {string} and status {string}")
-    public void evidenceCaptured(String sourceType, String status) {
+    @Then("the evidence is captured with source type {string}")
+    public void evidenceCaptured(String sourceType) {
         assertThat(evidenceItems).singleElement().satisfies(item -> {
             assertThat(item.evidenceReferences()).singleElement().satisfies(reference ->
                 assertThat(reference.sourceType()).isEqualTo(SourceType.valueOf(sourceType)));
-            assertThat(item.evidenceStatus()).isEqualTo(EvidenceStatus.valueOf(status));
         });
     }
 }
