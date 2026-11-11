@@ -24,7 +24,7 @@ public class FollowUpTools {
 
     @McpTool(
         name = "create_follow_up_item",
-        description = "Create a follow-up item. Evidence is attached explicitly in a separate call.",
+        description = "Create a tracked follow-up item with a generated ID and the supplied title and summary. Check list_follow_up_items for an existing match first; this tool does not deduplicate or infer relationships. Attach evidence separately with attach_evidence_to_follow_up. Creation does not set user-confirmed work status.",
         generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
@@ -58,7 +58,7 @@ public class FollowUpTools {
 
     @McpTool(
         name = "list_follow_up_items",
-        description = "List the locally tracked follow-up items.",
+        description = "List the signed-in user's tracked follow-up items so the client can find an existing matter before creating another. Retrieve an item's evidence with get_follow_up_item and user-confirmed status with get_status.",
         generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = true,
