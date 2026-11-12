@@ -4,8 +4,8 @@ The project is split into independently buildable components:
 
 - [`server`](server/README.md) — the Spring Boot MCP server, its persistence, source adapters,
   deterministic services, and MCP tools.
-- [`client`](client/README.md) — the future installable AI client. It will connect to the server
-  and own AI interpretation and user interaction.
+- [`client`](client/README.md) — installs the MCP connection and packaged Work Overview instructions
+  for Codex. The client performs AI interpretation and user interaction from any working directory.
 
 Run the existing server from the repository root:
 

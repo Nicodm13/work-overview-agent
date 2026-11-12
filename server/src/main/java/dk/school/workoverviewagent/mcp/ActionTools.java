@@ -34,7 +34,7 @@ public class ActionTools {
 
     @McpTool(
         name = "draft_follow_up_action",
-        description = "Prepare and store an editable email, Teams message, or meeting invitation draft for a tracked follow-up item. Creating a draft does not send or schedule it; execution requires explicit final approval.",
+        description = "Store an editable draft for an existing tracked follow-up item using client-supplied recipients and content; this tool does not compose or infer them. EMAIL needs recipients, subject, and body; TEAMS_MESSAGE needs recipients and body; MEETING_INVITATION needs recipients, meetingTitle, selectedStartsAt, and selectedEndsAt; supply its agenda too. Returns the stored draft and its ID for display and editing. Creating a draft never sends or schedules it; execution requires separate explicit final approval.",
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
             destructiveHint = false,
@@ -76,7 +76,7 @@ public class ActionTools {
 
     @McpTool(
         name = "update_action_draft",
-        description = "Replace the editable content of an unapproved action draft. Updating a draft does not approve or execute it.",
+        description = "Replace all editable content of an unapproved draft, preserving its ID, action type, and follow-up item. Retrieve the current draft first and supply every field to retain; omitted fields are cleared rather than preserved. Updating does not approve or execute the draft. Approved drafts cannot be edited; changed content requires a new draft and fresh final approval.",
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
             destructiveHint = false,
@@ -169,8 +169,7 @@ public class ActionTools {
 
     @McpTool(
         name = "delete_action_draft",
-        description = "Delete an unapproved draft. Approved or executed drafts cannot be deleted because they support "
-            + "auditability.",
+        description = "Delete an unapproved draft only when the user requests its deletion. An old or superseded draft is not automatically disposable. Approved or executed drafts cannot be deleted because they support auditability.",
         generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,

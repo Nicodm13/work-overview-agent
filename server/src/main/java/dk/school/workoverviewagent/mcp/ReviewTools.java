@@ -25,7 +25,7 @@ public class ReviewTools {
 
     @McpTool(
         name = "get_review",
-        description = "Review a selected time interval across work sources and return evidence items, source coverage, and limitations. Stores minimized, user-scoped evidence references for retrieval with get_item_evidence. Evidence does not establish user-confirmed work status.",
+        description = "Collect evidence for a selected interval across work sources, returning evidence items, source coverage, and limitations. Stores minimized, user-scoped references for get_item_evidence. This tool does not prioritize findings, create tracked follow-ups, retrieve their user-confirmed status, or prepare drafts; use the relevant tools separately. Missing digital updates do not establish that work is incomplete.",
         generateOutputSchema = true,
         annotations = @McpTool.McpAnnotations(
             readOnlyHint = false,
